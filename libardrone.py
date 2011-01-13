@@ -97,6 +97,53 @@ def at_comwdg():
     # FIXME: no sequence number
     pass
 
+def at_aflight(seq, flag):
+    """
+    Makes the drone fly autonomously.
+
+    Parameters:
+    seq -- sequence number
+    flag -- Integer: 1: start flight, 0: stop flight
+    """
+    at("AFLIGHT", seq, [flag])
+
+def at_pwm(seq, m1, m2, m3, m4):
+    """
+    Sends control values directly to the engines, overriding control loops.
+
+    Parameters:
+    seq -- sequence number
+    m1 -- front left command
+    m2 -- fright right command
+    m3 -- back right command
+    m4 -- back left command
+    """
+    # FIXME: what type do mx have?
+    pass
+
+def at_led(seq, anim, f, d):
+    """
+    Control the drones LED.
+
+    Parameters:
+    seq -- sequence number
+    anim -- Integer: animation to play
+    f -- ?: frequence in HZ of the animation
+    d -- Integer: total duration in seconds of the animation
+    """
+    pass
+
+def at_anim(seq, anim, d):
+    """
+    Makes the drone execute a predefined movement (animation).
+
+    Parameters:
+    seq -- sequcence number
+    anim -- Integer: animation to play
+    d -- Integer: total duration in sections of the animation
+    """
+    at("ANIM", seq, [anim, d])
+
 def at(command, seq, params=[]):
     """
     Parameters:
