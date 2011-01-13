@@ -42,7 +42,9 @@ def at_ref(seq, takeoff, emergency=False):
     takeoff -- True: Takeoff / False: Land
     emergency -- True: Turn of the engines
     """
-    p = 0b1000000000 if takeoff else 0b0
+    p = 0b10001010101000000000000000000
+    if takeoff:
+        p += 0b1000000000
     if emergency:
         p += 0b0100000000
     at("REF", seq, [p])
