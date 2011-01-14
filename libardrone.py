@@ -25,9 +25,49 @@ Docstring goes here.
 
 
 import struct
-
+import socket
+import time
 
 __author__ = "Bastian Venthur"
+
+###############################################################################
+### Preliminary high level commands
+###############################################################################
+
+def trim():
+    at_ftrim(1)
+
+def takeoff():
+#    at_comwdg(1)
+#    time.sleep(0.05)
+    at_ftrim(1)
+    time.sleep(0.1)
+    at_config(1, "control:altitude_max", "500")
+    time.sleep(0.1)
+    at_ref(1, True)
+
+def land():
+    at_pcmd(1, True, 0, 0, -0.1, 0)
+    time.sleep(2)
+    at_ref(1, False)
+
+def hover():
+    at_pcmd(1, False, 0, 0, 0, 0)
+
+def turn_left():
+    at_pcmd(1, True, 0, 0, 0, -0.5)
+
+def turn_right():
+    at_pcmd(1, True, 0, 0, 0, 0.5)
+
+def navdata_demo():
+    at_config(1, "general:navdata_demo", "TRUE")
+
+def XXX():
+    """Emergency halt -- will stop the engines no matter what!"""
+    at_ref(1, False, False)
+    at_ref(1, False, True)
+    at_ref(1, False, False)
 
 ###############################################################################
 ### Low level AT Commands
@@ -67,7 +107,7 @@ def at_pcmd(seq, progressive, lr, fb, vv, va):
     The above float values are a percentage of the maximum speed.
     """
     p = 1 if progressive else 0
-    at("PCMD", seq, [p, lr, fb, vv, va])
+    at("PCMD", seq, [p, float(lr), float(fb), float(vv), float(va)])
 
 def at_ftrim(seq):
     """
@@ -90,14 +130,14 @@ def at_zap(seq, stream):
     at("ZAP", seq, [stream])
 
 def at_config(seq, option, value):
-    pass
+    at("CONFIG", seq, [str(option), str(value)])
 
-def at_comwdg():
+def at_comwdg(seq):
     """
     Reset communication watchdog.
     """
     # FIXME: no sequence number
-    pass
+    at("COMWDG", seq)
 
 def at_aflight(seq, flag):
     """
@@ -161,7 +201,10 @@ def at(command, seq, params=[]):
             param_str += ",%d" % f2i(p)
         elif type(p) == str:
             param_str += ',"'+p+'"'
-    print "AT*%s=%i%s\n" % (command, seq, param_str)
+    msg = "AT*%s=%i%s\r" % (command, seq, param_str)
+    print msg
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sock.sendto(msg, ("192.168.1.1", 5556))
 
 def f2i(f):
     """Interpret IEEE-754 floating-point value as signed integer.
@@ -170,4 +213,34 @@ def f2i(f):
     f -- floating point value
     """
     return struct.unpack('i', struct.pack('f', f))[0]
+
+###############################################################################
+### navdata
+###############################################################################
+
+def decode_packet(packet):
+    """Decode a navdata packet."""
+    print
+    offset = 0
+    header, drone_state, seq_nr, vision_flag =  struct.unpack_from("IIII", packet, offset)
+    print "HEADER:"
+    print header, drone_state, seq_nr, vision_flag
+    offset += struct.calcsize("IIII")
+    option = 1
+    while 1:
+        try:
+            id, size =  struct.unpack_from("HH", packet, offset)
+            offset += struct.calcsize("HH")
+        except:
+            break
+        data = []
+        for i in range(size-struct.calcsize("HH")):
+            data.append(struct.unpack_from("c", packet, offset)[0])
+            offset += struct.calcsize("c")
+        print "OPTION %i:" % option
+        option += 1
+        print id, size, "".join(data)
+        # navdata_tag_t in navdata-common.h
+        if id == 0:
+            print struct.unpack_from("IIfffIfffI", "".join(data))
 
