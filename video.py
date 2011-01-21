@@ -13,7 +13,6 @@ class BitReader(object):
         self.fc = '<I'
         self.read_bits = 0
 
-
     def peek(self, nbits):
         # Read enough bits into chunk so we have at least nbits available
         while nbits > self.bits_left:
@@ -28,7 +27,6 @@ class BitReader(object):
         res = self.chunk & mask
         res = res >> (self.bits_left - nbits)
         return res
-
 
     def read(self, nbits):
         # Read enough bits into chunk so we have at least nbits available
@@ -49,7 +47,6 @@ class BitReader(object):
         self.read_bits += nbits
         return res
 
-
     def align(self):
         shift = (8 - self.read_bits) % 8
         #print "shifting: ", shift
@@ -58,40 +55,47 @@ class BitReader(object):
 
 def get_pheader(bitreader):
     bitreader.align()
-    _pp('psc', bitreader.read(22))
-    _pp('pformat', bitreader.read(2))
-    # vga: 160x120
-    # civ: 88x72
-    _pp('presolution', bitreader.read(3))
-    _pp('ptype', bitreader.read(3))
-    _pp('pquant', bitreader.read(5))
-    _pp('pframe', bitreader.read(32))
+    psc = bitreader.read(22)
+    assert(psc == 0b0000000000000000100000)
+    pformat = bitreader.read(2)
+    assert(pformat != 0b00)
+    if pformat == 1:
+        # CIF
+        width, height = 88, 72
+    else:
+        # VGA
+        width, height = 160, 120
+    presolution = bitreader.read(3)
+    assert(presolution != 0b000)
+    # double resolution presolution times
+    width = width << presolution - 1
+    height = height << presolution - 1
+    print "width/height:", width, height
+    ptype = bitreader.read(3)
+    pquant = bitreader.read(5)
+    pframe = bitreader.read(32)
+    return width, height
 
 def get_mb(bitreader):
-    #_pp('mbc', bitreader.read(1))
-    #_pp('mbdesc', bitreader.read(8))
-    #_pp('mbdiff', bitreader.read(2))
-    # his:
     mbc = bitreader.read(1)
+    mbdesc = 0
     if not (mbc & 1):
         mbdesc = bitreader.read(8)
-        if not (mbdesc & 0b10000000):
-            print "wrong mbdesc!"
-            return False
-        else:
-            print "correct mbdesc"
+        print bin(mbdesc)
+        assert(mbdesc & 0b10000000)
         if mbdesc & 0b01000000:
             mbdiff = bitreader.read(2)
         for i in range(6):
-            if (mbdesc >> i) & 1:
-                get_block(bitreader)
+            get_block(bitreader, (mbdesc >> i) & 1)
     return True
 
-def get_block(bitreader):
+def get_block(bitreader, has_coeff):
     # read the first 10 bits in a 16 bit datum
     out_list = []
     _ = 0b111111 << 10
     _ += bitreader.read(10)
+    if not has_coeff:
+        return
     out_list.append(_)
     while 1:
         zerocount = 0
@@ -116,31 +120,35 @@ def get_block(bitreader):
             tmp = -tmp if bitreader.read(1) else tmp
             out_list.append(tmp)
 
-def get_gob(bitreader):
+def get_gob(bitreader, blocks):
     bitreader.align()
-    #_pp('gobsc', bitreader.read(22))
-    #_pp('gobquant', bitreader.read(5))
     gobsc = bitreader.read(22)
     if gobsc == 0b0000000000000000111111:
         print "weeeee"
         return False
-    elif not (gobsc & 0b0000000000000000100000):
-        print "Got wrong GOBSC, aborting."
+    elif (not (gobsc & 0b0000000000000000100000) or
+         (gobsc & 0b1111111111111111000000)):
+        print "Got wrong GOBSC, aborting.", bin(gobsc)
         return False
-    print gobsc & 0b11111
+    print 'GOBSC:', gobsc & 0b11111
     _ = bitreader.read(5)
-    for i in range(10):
-        if not get_mb(bitreader):
-            return False
+    for i in range(blocks):
+        print "b%i" % i,
+        get_mb(bitreader)
+    print
     return True
 
 def read_picture(bitreader):
-    get_pheader(bitreader)
-    for i in range(10):
+    width, height = get_pheader(bitreader)
+    slices = height / 16
+    blocks = width / 16
+    # this is already the first slice
+    for i in range(blocks):
         get_mb(bitreader)
-    while get_gob(bitreader):
-        print '.',
-        pass
+    # those are the remaining ones
+    for i in range(1, slices):
+        print "Getting Slice", i, slices
+        get_gob(bitreader, blocks)
     print "\nEND OF PICTURE\n"
 
 def _pp(name, value):
@@ -148,7 +156,7 @@ def _pp(name, value):
     print "%s\t\t%s\t%s" % (name, str(bin(value)), str(value))
 
 if __name__ == '__main__':
-    fh = open('videoframe.raw', 'r')
+    fh = open('video.raw', 'r')
     data = fh.read()
     fh.close()
     br = BitReader(data)
