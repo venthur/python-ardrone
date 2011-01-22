@@ -67,7 +67,7 @@ def get_pheader(bitreader):
         width, height = 160, 120
     presolution = bitreader.read(3)
     assert(presolution != 0b000)
-    # double resolution presolution times
+    # double resolution presolution-1 times
     width = width << presolution - 1
     height = height << presolution - 1
     print "width/height:", width, height
@@ -81,7 +81,6 @@ def get_mb(bitreader):
     mbdesc = 0
     if not (mbc & 1):
         mbdesc = bitreader.read(8)
-        print bin(mbdesc)
         assert(mbdesc & 0b10000000)
         if mbdesc & 0b01000000:
             mbdiff = bitreader.read(2)
@@ -94,31 +93,42 @@ def get_block(bitreader, has_coeff):
     out_list = []
     _ = 0b111111 << 10
     _ += bitreader.read(10)
+    out_list.append(_)
     if not has_coeff:
         return
-    out_list.append(_)
     while 1:
+        # count the zeros
         zerocount = 0
         while bitreader.read(1) == 0:
             zerocount += 1
+        if zerocount > 6:
+            print "ZC", zerocount
+        assert(zerocount <= 6)
+        # get number of remaining bits to read
         toread = 0 if zerocount <= 1 else zerocount - 1
         additional = bitreader.read(toread)
-        if zerocount > 0:
-            tmp = (1 << zerocount) + additional
-            for i in range(tmp):
-                out_list.append(0)
+        # add as many zeros to out_list as indicated by additional bits
+        # if zerocount is 0, tmp = 0 else the 1 merged with additional bits
+        tmp = 0 if zerocount == 0 else (1 << toread) + additional
+        for i in range(tmp):
+            out_list.append(0)
 
+        # count the zeros
         zerocount = 0
         while bitreader.read(1) == 0:
             zerocount += 1
+        assert(zerocount <= 7)
+        # 01 == EOB
         if zerocount == 1:
             break
-        else:
-            tmp = (1 << zerocount)
-            if zerocount > 1:
-                tmp += bitreader.read(zerocount - 1)
-            tmp = -tmp if bitreader.read(1) else tmp
-            out_list.append(tmp)
+        # get number of remaining bits to read
+        toread = 0 if zerocount == 0 else zerocount - 1
+        additional = bitreader.read(toread)
+        tmp = (1 << toread) + additional
+        # get one more bit for the sign
+        tmp = -tmp if bitreader.read(1) else tmp
+        out_list.append(tmp)
+    assert(len(out_list) <= 64)
 
 def get_gob(bitreader, blocks):
     bitreader.align()
@@ -149,6 +159,9 @@ def read_picture(bitreader):
     for i in range(1, slices):
         print "Getting Slice", i, slices
         get_gob(bitreader, blocks)
+    bitreader.align()
+    eos = bitreader.read(22)
+    assert(eos == 0b0000000000000000111111)
     print "\nEND OF PICTURE\n"
 
 def _pp(name, value):
@@ -156,7 +169,7 @@ def _pp(name, value):
     print "%s\t\t%s\t%s" % (name, str(bin(value)), str(value))
 
 if __name__ == '__main__':
-    fh = open('video.raw', 'r')
+    fh = open('videoframe.raw', 'r')
     data = fh.read()
     fh.close()
     br = BitReader(data)
