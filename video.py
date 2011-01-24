@@ -258,6 +258,20 @@ def decode_block(block):
     tmp = inverse_dct(tmp)
     return tmp
 
+def clip(v):
+    v = 0 if v < 0 else v
+    v = 255 if v > 255 else v
+    return v
+
+def ycbcr2rgb(y, b, r):
+    Y = y - 16
+    B = b - 128
+    R = r - 128
+    r = clip((298 * Y           + 409 * R + 128) >> 8)
+    g = clip((298 * Y - 100 * B - 208 * R + 128) >> 8)
+    b = clip((298 * Y + 516 * B           + 128) >> 8)
+    return [r, g, b]
+
 def get_mb(bitreader):
     mbc = bitreader.read(1)
     mbdesc = 0
@@ -267,9 +281,54 @@ def get_mb(bitreader):
         assert(mbdesc & 0b10000000)
         if mbdesc & 0b01000000:
             mbdiff = bitreader.read(2)
-        for i in range(6):
-            b = get_block(bitreader, (mbdesc >> i) & 1)
-            block.append(decode_block(b))
+        y0 = decode_block(get_block(bitreader, (mbdesc >> 0) & 1))
+        y1 = decode_block(get_block(bitreader, (mbdesc >> 1) & 1))
+        y2 = decode_block(get_block(bitreader, (mbdesc >> 2) & 1))
+        y3 = decode_block(get_block(bitreader, (mbdesc >> 3) & 1))
+        cb = decode_block(get_block(bitreader, (mbdesc >> 4) & 1))
+        cr = decode_block(get_block(bitreader, (mbdesc >> 5) & 1))
+
+        # ycbcr to rgb
+        i = 0
+        for y in range(8):
+            for x in range(8):
+                yy = y0[i]
+                bb = cb[8*(y/2) + x/2]
+                rr = cr[8*(y/2) + x/2]
+                rgb = ycbcr2rgb(yy, bb, rr)
+                block.append(rgb)
+                i += 1
+        i = 0
+        for y in range(8):
+            for x in range(8):
+                yy = y1[i]
+                bb = cb[8*(y/2) + x/2 + 4]
+                rr = cr[8*(y/2) + x/2 + 4]
+                rgb = ycbcr2rgb(yy, bb, rr)
+                block.append(rgb)
+                i += 1
+
+        i = 0
+        for y in range(8):
+            for x in range(8):
+                yy = y2[i]
+                bb = cb[8*(y/2) + x/2 + 32]
+                rr = cr[8*(y/2) + x/2 + 32]
+                rgb = ycbcr2rgb(yy, bb, rr)
+                block.append(rgb)
+                i += 1
+        i = 0
+        for y in range(8):
+            for x in range(8):
+                yy = y3[i]
+                bb = cb[8*(y/2) + x/2 + 36]
+                rr = cr[8*(y/2) + x/2 + 36]
+                rgb = ycbcr2rgb(yy, bb, rr)
+                block.append(rgb)
+                i += 1
+
+
+
     return block
 
 def get_block(bitreader, has_coeff):
@@ -334,6 +393,8 @@ def get_gob(bitreader, blocks):
     return block
 
 def read_picture(bitreader):
+    import datetime
+    t = datetime.datetime.now()
     block = []
     width, height = get_pheader(bitreader)
     slices = height / 16
@@ -351,28 +412,26 @@ def read_picture(bitreader):
     print "\nEND OF PICTURE\n"
     print slices, blocks
     print len(block)
+    print 'time', datetime.datetime.now() - t
     # print the image
     from PIL import Image
     im = Image.new("RGBA", (blocks*16, slices*16))
-    blocki = 0
+    i = 0
     for sl in range(slices):
         for bl in range(blocks):
             for j in range(4):
-                i = 0
-                b = block[6*blocki+j]
                 for y in range(8):
                     for x in range(8):
-                        v = int(b[i])
+                        r, g, b = block[i]
                         if j == 0:
-                            im.putpixel((bl*16+x, sl*16+y), (v, 0, 0))
+                            im.putpixel((bl*16+x, sl*16+y), (r, g, b))
                         if j == 1:
-                            im.putpixel((bl*16+x+8, sl*16+y), (v, 0, 0))
+                           im.putpixel((bl*16+x+8, sl*16+y), (r, g, b))
                         if j == 2:
-                            im.putpixel((bl*16+x, sl*16+y+8), (v, 0, 0))
+                           im.putpixel((bl*16+x, sl*16+y+8), (r, g, b))
                         if j == 3:
-                            im.putpixel((bl*16+x+8, sl*16+y+8), (v, 0, 0))
+                           im.putpixel((bl*16+x+8, sl*16+y+8), (r, g, b))
                         i += 1
-            blocki += 1
     im.show()
 
 
