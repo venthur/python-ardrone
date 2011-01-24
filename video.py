@@ -2,6 +2,44 @@
 
 import struct
 
+# from zig-zag back to normal
+ZIG_ZAG_POSITIONS = [ 0,  1,  8, 16,  9,  2, 3, 10,
+                     17, 24, 32, 25, 18, 11, 4,  5,
+                     12, 19, 26, 33, 40, 48, 41, 34,
+                     27, 20, 13,  6,  7, 14, 21, 28,
+                     35, 42, 49, 56, 57, 50, 43, 36,
+                     29, 22, 15, 23, 30, 37, 44, 51,
+                     58, 59, 52, 45, 38, 31, 39, 46,
+                     53, 60, 61, 54, 47, 55, 62, 63]
+
+# int16_t
+iquant_tab = [ 3,  5,  7,  9, 11, 13, 15, 17,
+               5,  7,  9, 11, 13, 15, 17, 19,
+               7,  9, 11, 13, 15, 17, 19, 21,
+               9, 11, 13, 15, 17, 19, 21, 23,
+              11, 13, 15, 17, 19, 21, 23, 25,
+              13, 15, 17, 19, 21, 23, 25, 27,
+              15, 17, 19, 21, 23, 25, 27, 29,
+              17, 19, 21, 23, 25, 27, 29, 31]
+
+FIX_0_298631336 = 2446
+FIX_0_390180644 = 3196
+FIX_0_541196100 = 4433
+FIX_0_765366865 = 6270
+FIX_0_899976223 = 7373
+FIX_1_175875602 = 9633
+FIX_1_501321110 = 12299
+FIX_1_847759065 = 15137
+FIX_1_961570560 = 16069
+FIX_2_053119869 = 16819
+FIX_2_562915447 = 20995
+FIX_3_072711026 = 25172
+
+CONST_BITS = 13
+PASS1_BITS = 1
+F1 = CONST_BITS - PASS1_BITS - 1
+F2 = CONST_BITS - PASS1_BITS
+F3 = CONST_BITS + PASS1_BITS + 3
 
 class BitReader(object):
 
@@ -76,33 +114,178 @@ def get_pheader(bitreader):
     pframe = bitreader.read(32)
     return width, height
 
+
+def inverse_dct(block):
+
+    workspace = [0 for i in range(64)]
+    data = [0 for i in range(64)]
+    pointer = 0
+    for ctr in range(8, 0, -1):
+        if (block[pointer + 8*1] == 0 and block[pointer + 8*2] == 0 and
+            block[pointer + 8*3] == 0 and block[pointer + 8*4] == 0 and
+            block[pointer + 8*5] == 0 and block[pointer + 8*6] == 0 and
+            block[pointer + 8*7] == 0):
+            dcval = block[pointer] << PASS1_BITS
+            for i in range(8):
+                workspace[pointer + 8*i] = dcval
+            pointer += 1
+            continue
+
+        z2 = block[pointer + 16]
+        z3 = block[pointer + 48]
+
+        z1 = (z2 + z3) * FIX_0_541196100
+        tmp2 = z1 + z3 * -FIX_1_847759065
+        tmp3 = z1 + z2 * FIX_0_765366865
+
+        z2 = block[pointer]
+        z3 = block[pointer + 32]
+
+        tmp0 = (z2 + z3) << CONST_BITS
+        tmp1 = (z2 - z3) << CONST_BITS
+
+        tmp10 = tmp0 + tmp3
+        tmp13 = tmp0 - tmp3
+        tmp11 = tmp1 + tmp2
+        tmp12 = tmp1 - tmp2
+
+        tmp0 = block[pointer + 56]
+        tmp1 = block[pointer + 40]
+        tmp2 = block[pointer + 24]
+        tmp3 = block[pointer + 8]
+
+        z1 = tmp0 + tmp3
+        z2 = tmp1 + tmp2
+        z3 = tmp0 + tmp2
+        z4 = tmp1 + tmp3
+        z5 = (z3 + z4) * FIX_1_175875602
+
+        tmp0 = tmp0 * FIX_0_298631336
+        tmp1 = tmp1 * FIX_2_053119869
+        tmp2 = tmp2 * FIX_3_072711026
+        tmp3 = tmp3 * FIX_1_501321110
+        z1 = z1 * -FIX_0_899976223
+        z2 = z2 * -FIX_2_562915447
+        z3 = z3 * -FIX_1_961570560
+        z4 = z4 * -FIX_0_390180644
+
+        z3 += z5
+        z4 += z5
+
+        tmp0 += z1 + z3
+        tmp1 += z2 + z4
+        tmp2 += z2 + z3
+        tmp3 += z1 + z4
+
+        workspace[pointer + 0] = ((tmp10 + tmp3 + (1 << F1)) >> F2)
+        workspace[pointer + 56] = ((tmp10 - tmp3 + (1 << F1)) >> F2)
+        workspace[pointer + 8] = ((tmp11 + tmp2 + (1 << F1)) >> F2)
+        workspace[pointer + 48] = ((tmp11 - tmp2 + (1 << F1)) >> F2)
+        workspace[pointer + 16] = ((tmp12 + tmp1 + (1 << F1)) >> F2)
+        workspace[pointer + 40] = ((tmp12 - tmp1 + (1 << F1)) >> F2)
+        workspace[pointer + 24] = ((tmp13 + tmp0 + (1 << F1)) >> F2)
+        workspace[pointer + 32] = ((tmp13 - tmp0 + (1 << F1)) >> F2)
+
+        pointer += 1
+
+    pointer = 0
+    for ctr in range(8):
+        z2 = workspace[pointer + 2];
+        z3 = workspace[pointer + 6];
+
+        z1 = (z2 + z3) * FIX_0_541196100;
+        tmp2 = z1 + z3 * -FIX_1_847759065;
+        tmp3 = z1 + z2 * FIX_0_765366865;
+
+        tmp0 = (workspace[pointer + 0] + workspace[pointer + 4]) << CONST_BITS;
+        tmp1 = (workspace[pointer + 0] - workspace[pointer + 4]) << CONST_BITS;
+
+        tmp10 = tmp0 + tmp3;
+        tmp13 = tmp0 - tmp3;
+        tmp11 = tmp1 + tmp2;
+        tmp12 = tmp1 - tmp2;
+
+        tmp0 = workspace[pointer + 7];
+        tmp1 = workspace[pointer + 5];
+        tmp2 = workspace[pointer + 3];
+        tmp3 = workspace[pointer + 1];
+
+        z1 = tmp0 + tmp3;
+        z2 = tmp1 + tmp2;
+        z3 = tmp0 + tmp2;
+        z4 = tmp1 + tmp3;
+
+        z5 = (z3 + z4) * FIX_1_175875602;
+
+        tmp0 = tmp0 * FIX_0_298631336;
+        tmp1 = tmp1 * FIX_2_053119869;
+        tmp2 = tmp2 * FIX_3_072711026;
+        tmp3 = tmp3 * FIX_1_501321110;
+        z1 = z1 * -FIX_0_899976223;
+        z2 = z2 * -FIX_2_562915447;
+        z3 = z3 * -FIX_1_961570560;
+        z4 = z4 * -FIX_0_390180644;
+
+        z3 += z5;
+        z4 += z5;
+
+        tmp0 += z1 + z3;
+        tmp1 += z2 + z4;
+        tmp2 += z2 + z3;
+        tmp3 += z1 + z4;
+
+        data[pointer + 0] = (tmp10 + tmp3) >> F3
+        data[pointer + 7] = (tmp10 - tmp3) >> F3
+        data[pointer + 1] = (tmp11 + tmp2) >> F3
+        data[pointer + 6] = (tmp11 - tmp2) >> F3
+        data[pointer + 2] = (tmp12 + tmp1) >> F3
+        data[pointer + 5] = (tmp12 - tmp1) >> F3
+        data[pointer + 3] = (tmp13 + tmp0) >> F3
+        data[pointer + 4] = (tmp13 - tmp0) >> F3
+
+        pointer += 8;
+
+    return data
+
+def decode_block(block):
+    # de-zic-zag
+    tmp = [0 for i in range(64)]
+    for i in range(len(block)):
+        tmp[ZIG_ZAG_POSITIONS[i]] = block[i]
+    # de-quant
+    for i in range(64):
+        tmp[i] *= iquant_tab[i]
+    tmp = inverse_dct(tmp)
+    return tmp
+
 def get_mb(bitreader):
     mbc = bitreader.read(1)
     mbdesc = 0
-    if not (mbc & 1):
+    block = []
+    if mbc == 0:
         mbdesc = bitreader.read(8)
         assert(mbdesc & 0b10000000)
         if mbdesc & 0b01000000:
             mbdiff = bitreader.read(2)
         for i in range(6):
-            get_block(bitreader, (mbdesc >> i) & 1)
-    return True
+            b = get_block(bitreader, (mbdesc >> i) & 1)
+            block.append(decode_block(b))
+    return block
 
 def get_block(bitreader, has_coeff):
     # read the first 10 bits in a 16 bit datum
     out_list = []
-    _ = 0b111111 << 10
-    _ += bitreader.read(10)
+    #_ = 0b111111 << 10
+    #_ += bitreader.read(10)
+    _ = bitreader.read(10)
     out_list.append(_)
     if not has_coeff:
-        return
+        return out_list
     while 1:
         # count the zeros
         zerocount = 0
         while bitreader.read(1) == 0:
             zerocount += 1
-        if zerocount > 6:
-            print "ZC", zerocount
         assert(zerocount <= 6)
         # get number of remaining bits to read
         toread = 0 if zerocount <= 1 else zerocount - 1
@@ -129,8 +312,10 @@ def get_block(bitreader, has_coeff):
         tmp = -tmp if bitreader.read(1) else tmp
         out_list.append(tmp)
     assert(len(out_list) <= 64)
+    return out_list
 
 def get_gob(bitreader, blocks):
+    block = []
     bitreader.align()
     gobsc = bitreader.read(22)
     if gobsc == 0b0000000000000000111111:
@@ -144,25 +329,52 @@ def get_gob(bitreader, blocks):
     _ = bitreader.read(5)
     for i in range(blocks):
         print "b%i" % i,
-        get_mb(bitreader)
+        block.extend(get_mb(bitreader))
     print
-    return True
+    return block
 
 def read_picture(bitreader):
+    block = []
     width, height = get_pheader(bitreader)
     slices = height / 16
     blocks = width / 16
     # this is already the first slice
     for i in range(blocks):
-        get_mb(bitreader)
+        block.extend(get_mb(bitreader))
     # those are the remaining ones
     for i in range(1, slices):
         print "Getting Slice", i, slices
-        get_gob(bitreader, blocks)
+        block.extend(get_gob(bitreader, blocks))
     bitreader.align()
     eos = bitreader.read(22)
     assert(eos == 0b0000000000000000111111)
     print "\nEND OF PICTURE\n"
+    print slices, blocks
+    print len(block)
+    # print the image
+    from PIL import Image
+    im = Image.new("RGBA", (blocks*16, slices*16))
+    blocki = 0
+    for sl in range(slices):
+        for bl in range(blocks):
+            for j in range(4):
+                i = 0
+                b = block[6*blocki+j]
+                for y in range(8):
+                    for x in range(8):
+                        v = int(b[i])
+                        if j == 0:
+                            im.putpixel((bl*16+x, sl*16+y), (v, 0, 0))
+                        if j == 1:
+                            im.putpixel((bl*16+x+8, sl*16+y), (v, 0, 0))
+                        if j == 2:
+                            im.putpixel((bl*16+x, sl*16+y+8), (v, 0, 0))
+                        if j == 3:
+                            im.putpixel((bl*16+x+8, sl*16+y+8), (v, 0, 0))
+                        i += 1
+            blocki += 1
+    im.show()
+
 
 def _pp(name, value):
     #return
