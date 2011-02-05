@@ -256,50 +256,84 @@ def decode_block(block):
     tmp = inverse_dct(tmp)
     return tmp
 
+
+scalemap = [ 0,  0,  1,  1,  2,  2,  3,  3,
+             0,  0,  1,  1,  2,  2,  3,  3,
+             8,  8,  9,  9, 10, 10, 11, 11,
+             8,  8,  9,  9, 10, 10, 11, 11,
+            16, 16, 17, 17, 18, 18, 19, 19,
+            16, 16, 17, 17, 18, 18, 19, 19,
+            24, 24, 25, 25, 26, 26, 27, 27,
+            24, 24, 25, 25, 26, 26, 27, 27,
+
+             4,  4,  5,  5,  6,  6,  7,  7,
+             4,  4,  5,  5,  6,  6,  7,  7,
+            12, 12, 13, 13, 14, 14, 15, 15,
+            12, 12, 13, 13, 14, 14, 15, 15,
+            20, 20, 21, 21, 22, 22, 23, 23,
+            20, 20, 21, 21, 22, 22, 23, 23,
+            28, 28, 29, 29, 30, 30, 31, 31,
+            28, 28, 29, 29, 30, 30, 31, 31,
+
+            32, 32, 33, 33, 34, 34, 35, 35,
+            32, 32, 33, 33, 34, 34, 35, 35,
+            40, 40, 41, 41, 42, 42, 43, 43,
+            40, 40, 41, 41, 42, 42, 43, 43,
+            48, 48, 49, 49, 50, 50, 51, 51,
+            48, 48, 49, 49, 50, 50, 51, 51,
+            56, 56, 57, 57, 58, 58, 59, 59,
+            56, 56, 57, 57, 58, 58, 59, 59,
+
+            36, 36, 37, 37, 38, 38, 39, 39,
+            36, 36, 37, 37, 38, 38, 39, 39,
+            44, 44, 45, 45, 46, 46, 47, 47,
+            44, 44, 45, 45, 46, 46, 47, 47,
+            52, 52, 53, 53, 54, 54, 55, 55,
+            52, 52, 53, 53, 54, 54, 55, 55,
+            60, 60, 61, 61, 62, 62, 63, 63,
+            60, 60, 61, 61, 62, 62, 63, 63]
+
+
+def scale_block(b):
+    """Scale an 8x8 block up to 4 8x8 blocks."""
+    br = [0 for i in range(4*8*8)]
+    for i in range(4*8*8):
+        br[i] = b[scalemap[i]]
+    return br
+
 def get_mb(bitreader):
     mbc = bitreader.read(1)
     mbdesc = 0
-    block = []
     if mbc == 0:
         mbdesc = bitreader.read(8)
         assert(mbdesc & 0b10000000)
         if mbdesc & 0b01000000:
             mbdiff = bitreader.read(2)
-        y = [None, None, None, None]
-        y[0] = decode_block(get_block(bitreader, (mbdesc >> 0) & 1))
-        y[1] = decode_block(get_block(bitreader, (mbdesc >> 1) & 1))
-        y[2] = decode_block(get_block(bitreader, (mbdesc >> 2) & 1))
-        y[3] = decode_block(get_block(bitreader, (mbdesc >> 3) & 1))
+        y = []
+        y.extend(decode_block(get_block(bitreader, (mbdesc >> 0) & 1)))
+        y.extend(decode_block(get_block(bitreader, (mbdesc >> 1) & 1)))
+        y.extend(decode_block(get_block(bitreader, (mbdesc >> 2) & 1)))
+        y.extend(decode_block(get_block(bitreader, (mbdesc >> 3) & 1)))
         cb = decode_block(get_block(bitreader, (mbdesc >> 4) & 1))
         cr = decode_block(get_block(bitreader, (mbdesc >> 5) & 1))
-
+        # upscale cb and cr to make calculations below more efficient
+        cb = scale_block(cb)
+        cr = scale_block(cr)
         # ycbcr to rgb
-        for j in range(4):
-            if j == 0:
-                offset = 0
-            elif j == 1:
-                offset = 4
-            elif j == 2:
-                offset = 32
-            else:
-                offset = 36
-            i = 0
-            for row in range(8):
-                for col in range(8):
-                    Y = y[j][i] - 16
-                    B = cb[8*(row/2) + col/2 + offset] - 128
-                    R = cr[8*(row/2) + col/2 + offset] - 128
-                    r = (298 * Y           + 409 * R + 128) >> 8
-                    g = (298 * Y - 100 * B - 208 * R + 128) >> 8
-                    b = (298 * Y + 516 * B           + 128) >> 8
-                    for v in r, g, b:
-                        if v < 0:
-                            v = 0
-                        elif v > 255:
-                            v = 255
-                    block.append([r, g, b])
-                    i += 1
-
+        block = [0 for i in range(8*8*4)]
+        for i in range(8*8*4):
+            Y = y[i] - 16
+            B = cb[i] - 128
+            R = cr[i] - 128
+            r = (298 * Y           + 409 * R + 128) >> 8
+            g = (298 * Y - 100 * B - 208 * R + 128) >> 8
+            b = (298 * Y + 516 * B           + 128) >> 8
+            for v in r, g, b:
+                if v < 0:
+                    v = 0
+                elif v > 255:
+                    v = 255
+            block[i] = [r, g, b]
     return block
 
 def get_block(bitreader, has_coeff):
@@ -420,5 +454,5 @@ def main():
 
 if __name__ == '__main__':
     import cProfile
-    #stats = cProfile.run('main()')
-    main()
+    stats = cProfile.run('main()')
+    #main()
