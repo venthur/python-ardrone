@@ -1,6 +1,8 @@
 
 
 import struct
+#import psyco
+#psyco.full()
 
 # from zig-zag back to normal
 ZIG_ZAG_POSITIONS = [ 0,  1,  8, 16,  9,  2, 3, 10,
@@ -49,17 +51,18 @@ class BitReader(object):
         self.bits_left = 0
         self.chunk = 0
         self.fc = '<I'
+        self.size = struct.calcsize(self.fc)
         self.read_bits = 0
 
     def peek(self, nbits):
         # Read enough bits into chunk so we have at least nbits available
         while nbits > self.bits_left:
-            self.chunk = self.chunk << (struct.calcsize(self.fc) * 8)
+            self.chunk = self.chunk << (self.size * 8)
             self.chunk |= struct.unpack_from(self.fc,
                                              self.packet,
-                                             self.offset*struct.calcsize(self.fc))[0]
+                                             self.offset*self.size)[0]
             self.offset += 1
-            self.bits_left += struct.calcsize(self.fc) * 8
+            self.bits_left += self.size * 8
         mask = 2**nbits-1
         mask = mask << (self.bits_left - nbits)
         res = self.chunk & mask
@@ -69,12 +72,12 @@ class BitReader(object):
     def read(self, nbits):
         # Read enough bits into chunk so we have at least nbits available
         while nbits > self.bits_left:
-            self.chunk = self.chunk << (struct.calcsize(self.fc) * 8)
+            self.chunk = self.chunk << (self.size * 8)
             self.chunk |= struct.unpack_from(self.fc,
                                              self.packet,
-                                             self.offset*struct.calcsize(self.fc))[0]
+                                             self.offset*self.size)[0]
             self.offset += 1
-            self.bits_left += struct.calcsize(self.fc) * 8
+            self.bits_left += self.size * 8
         # Get the first nbits bits from chunk (and remove them from chunk)
         mask = 2**nbits-1
         mask = mask << (self.bits_left - nbits)
@@ -119,16 +122,14 @@ def inverse_dct(block):
 
     workspace = [0 for i in range(64)]
     data = [0 for i in range(64)]
-    pointer = 0
-    for ctr in range(8, 0, -1):
-        if (block[pointer + 8*1] == 0 and block[pointer + 8*2] == 0 and
-            block[pointer + 8*3] == 0 and block[pointer + 8*4] == 0 and
-            block[pointer + 8*5] == 0 and block[pointer + 8*6] == 0 and
-            block[pointer + 8*7] == 0):
+    for pointer in range(8):
+        if (block[pointer + 8] == 0 and block[pointer + 16] == 0 and
+            block[pointer + 24] == 0 and block[pointer + 32] == 0 and
+            block[pointer + 40] == 0 and block[pointer + 48] == 0 and
+            block[pointer + 56] == 0):
             dcval = block[pointer] << PASS1_BITS
             for i in range(8):
                 workspace[pointer + 8*i] = dcval
-            pointer += 1
             continue
 
         z2 = block[pointer + 16]
@@ -160,14 +161,14 @@ def inverse_dct(block):
         z4 = tmp1 + tmp3
         z5 = (z3 + z4) * FIX_1_175875602
 
-        tmp0 = tmp0 * FIX_0_298631336
-        tmp1 = tmp1 * FIX_2_053119869
-        tmp2 = tmp2 * FIX_3_072711026
-        tmp3 = tmp3 * FIX_1_501321110
-        z1 = z1 * -FIX_0_899976223
-        z2 = z2 * -FIX_2_562915447
-        z3 = z3 * -FIX_1_961570560
-        z4 = z4 * -FIX_0_390180644
+        tmp0 *= FIX_0_298631336
+        tmp1 *= FIX_2_053119869
+        tmp2 *= FIX_3_072711026
+        tmp3 *= FIX_1_501321110
+        z1 *= -FIX_0_899976223
+        z2 *= -FIX_2_562915447
+        z3 *= -FIX_1_961570560
+        z4 *= -FIX_0_390180644
 
         z3 += z5
         z4 += z5
@@ -186,53 +187,51 @@ def inverse_dct(block):
         workspace[pointer + 24] = ((tmp13 + tmp0 + (1 << F1)) >> F2)
         workspace[pointer + 32] = ((tmp13 - tmp0 + (1 << F1)) >> F2)
 
-        pointer += 1
 
-    pointer = 0
-    for ctr in range(8):
-        z2 = workspace[pointer + 2];
-        z3 = workspace[pointer + 6];
+    for pointer in range(0, 8*8, 8):
+        z2 = workspace[pointer + 2]
+        z3 = workspace[pointer + 6]
 
-        z1 = (z2 + z3) * FIX_0_541196100;
-        tmp2 = z1 + z3 * -FIX_1_847759065;
-        tmp3 = z1 + z2 * FIX_0_765366865;
+        z1 = (z2 + z3) * FIX_0_541196100
+        tmp2 = z1 + z3 * -FIX_1_847759065
+        tmp3 = z1 + z2 * FIX_0_765366865
 
-        tmp0 = (workspace[pointer + 0] + workspace[pointer + 4]) << CONST_BITS;
-        tmp1 = (workspace[pointer + 0] - workspace[pointer + 4]) << CONST_BITS;
+        tmp0 = (workspace[pointer] + workspace[pointer + 4]) << CONST_BITS
+        tmp1 = (workspace[pointer] - workspace[pointer + 4]) << CONST_BITS
 
-        tmp10 = tmp0 + tmp3;
-        tmp13 = tmp0 - tmp3;
-        tmp11 = tmp1 + tmp2;
-        tmp12 = tmp1 - tmp2;
+        tmp10 = tmp0 + tmp3
+        tmp13 = tmp0 - tmp3
+        tmp11 = tmp1 + tmp2
+        tmp12 = tmp1 - tmp2
 
-        tmp0 = workspace[pointer + 7];
-        tmp1 = workspace[pointer + 5];
-        tmp2 = workspace[pointer + 3];
-        tmp3 = workspace[pointer + 1];
+        tmp0 = workspace[pointer + 7]
+        tmp1 = workspace[pointer + 5]
+        tmp2 = workspace[pointer + 3]
+        tmp3 = workspace[pointer + 1]
 
-        z1 = tmp0 + tmp3;
-        z2 = tmp1 + tmp2;
-        z3 = tmp0 + tmp2;
-        z4 = tmp1 + tmp3;
+        z1 = tmp0 + tmp3
+        z2 = tmp1 + tmp2
+        z3 = tmp0 + tmp2
+        z4 = tmp1 + tmp3
 
-        z5 = (z3 + z4) * FIX_1_175875602;
+        z5 = (z3 + z4) * FIX_1_175875602
 
-        tmp0 = tmp0 * FIX_0_298631336;
-        tmp1 = tmp1 * FIX_2_053119869;
-        tmp2 = tmp2 * FIX_3_072711026;
-        tmp3 = tmp3 * FIX_1_501321110;
-        z1 = z1 * -FIX_0_899976223;
-        z2 = z2 * -FIX_2_562915447;
-        z3 = z3 * -FIX_1_961570560;
-        z4 = z4 * -FIX_0_390180644;
+        tmp0 *= FIX_0_298631336
+        tmp1 *= FIX_2_053119869
+        tmp2 *= FIX_3_072711026
+        tmp3 *= FIX_1_501321110
+        z1 *= -FIX_0_899976223
+        z2 *= -FIX_2_562915447
+        z3 *= -FIX_1_961570560
+        z4 *= -FIX_0_390180644
 
-        z3 += z5;
-        z4 += z5;
+        z3 += z5
+        z4 += z5
 
-        tmp0 += z1 + z3;
-        tmp1 += z2 + z4;
-        tmp2 += z2 + z3;
-        tmp3 += z1 + z4;
+        tmp0 += z1 + z3
+        tmp1 += z2 + z4
+        tmp2 += z2 + z3
+        tmp3 += z1 + z4
 
         data[pointer + 0] = (tmp10 + tmp3) >> F3
         data[pointer + 7] = (tmp10 - tmp3) >> F3
@@ -243,9 +242,8 @@ def inverse_dct(block):
         data[pointer + 3] = (tmp13 + tmp0) >> F3
         data[pointer + 4] = (tmp13 - tmp0) >> F3
 
-        pointer += 8;
-
     return data
+
 
 def decode_block(block):
     # de-zic-zag
@@ -258,20 +256,6 @@ def decode_block(block):
     tmp = inverse_dct(tmp)
     return tmp
 
-def clip(v):
-    v = 0 if v < 0 else v
-    v = 255 if v > 255 else v
-    return v
-
-def ycbcr2rgb(y, b, r):
-    Y = y - 16
-    B = b - 128
-    R = r - 128
-    r = clip((298 * Y           + 409 * R + 128) >> 8)
-    g = clip((298 * Y - 100 * B - 208 * R + 128) >> 8)
-    b = clip((298 * Y + 516 * B           + 128) >> 8)
-    return [r, g, b]
-
 def get_mb(bitreader):
     mbc = bitreader.read(1)
     mbdesc = 0
@@ -281,63 +265,47 @@ def get_mb(bitreader):
         assert(mbdesc & 0b10000000)
         if mbdesc & 0b01000000:
             mbdiff = bitreader.read(2)
-        y0 = decode_block(get_block(bitreader, (mbdesc >> 0) & 1))
-        y1 = decode_block(get_block(bitreader, (mbdesc >> 1) & 1))
-        y2 = decode_block(get_block(bitreader, (mbdesc >> 2) & 1))
-        y3 = decode_block(get_block(bitreader, (mbdesc >> 3) & 1))
+        y = [None, None, None, None]
+        y[0] = decode_block(get_block(bitreader, (mbdesc >> 0) & 1))
+        y[1] = decode_block(get_block(bitreader, (mbdesc >> 1) & 1))
+        y[2] = decode_block(get_block(bitreader, (mbdesc >> 2) & 1))
+        y[3] = decode_block(get_block(bitreader, (mbdesc >> 3) & 1))
         cb = decode_block(get_block(bitreader, (mbdesc >> 4) & 1))
         cr = decode_block(get_block(bitreader, (mbdesc >> 5) & 1))
 
         # ycbcr to rgb
-        i = 0
-        for y in range(8):
-            for x in range(8):
-                yy = y0[i]
-                bb = cb[8*(y/2) + x/2]
-                rr = cr[8*(y/2) + x/2]
-                rgb = ycbcr2rgb(yy, bb, rr)
-                block.append(rgb)
-                i += 1
-        i = 0
-        for y in range(8):
-            for x in range(8):
-                yy = y1[i]
-                bb = cb[8*(y/2) + x/2 + 4]
-                rr = cr[8*(y/2) + x/2 + 4]
-                rgb = ycbcr2rgb(yy, bb, rr)
-                block.append(rgb)
-                i += 1
-
-        i = 0
-        for y in range(8):
-            for x in range(8):
-                yy = y2[i]
-                bb = cb[8*(y/2) + x/2 + 32]
-                rr = cr[8*(y/2) + x/2 + 32]
-                rgb = ycbcr2rgb(yy, bb, rr)
-                block.append(rgb)
-                i += 1
-        i = 0
-        for y in range(8):
-            for x in range(8):
-                yy = y3[i]
-                bb = cb[8*(y/2) + x/2 + 36]
-                rr = cr[8*(y/2) + x/2 + 36]
-                rgb = ycbcr2rgb(yy, bb, rr)
-                block.append(rgb)
-                i += 1
-
-
+        for j in range(4):
+            if j == 0:
+                offset = 0
+            elif j == 1:
+                offset = 4
+            elif j == 2:
+                offset = 32
+            else:
+                offset = 36
+            i = 0
+            for row in range(8):
+                for col in range(8):
+                    Y = y[j][i] - 16
+                    B = cb[8*(row/2) + col/2 + offset] - 128
+                    R = cr[8*(row/2) + col/2 + offset] - 128
+                    r = (298 * Y           + 409 * R + 128) >> 8
+                    g = (298 * Y - 100 * B - 208 * R + 128) >> 8
+                    b = (298 * Y + 516 * B           + 128) >> 8
+                    for v in r, g, b:
+                        if v < 0:
+                            v = 0
+                        elif v > 255:
+                            v = 255
+                    block.append([r, g, b])
+                    i += 1
 
     return block
 
 def get_block(bitreader, has_coeff):
     # read the first 10 bits in a 16 bit datum
     out_list = []
-    #_ = 0b111111 << 10
-    #_ += bitreader.read(10)
-    _ = bitreader.read(10)
-    out_list.append(_)
+    out_list.append(int(bitreader.read(10)))
     if not has_coeff:
         return out_list
     while 1:
@@ -371,6 +339,7 @@ def get_block(bitreader, has_coeff):
         tmp = -tmp if bitreader.read(1) else tmp
         out_list.append(tmp)
     assert(len(out_list) <= 64)
+    out_list = map(int, out_list)
     return out_list
 
 def get_gob(bitreader, blocks):
@@ -384,12 +353,11 @@ def get_gob(bitreader, blocks):
          (gobsc & 0b1111111111111111000000)):
         print "Got wrong GOBSC, aborting.", bin(gobsc)
         return False
-    print 'GOBSC:', gobsc & 0b11111
+    #print 'GOBSC:', gobsc & 0b11111
     _ = bitreader.read(5)
     for i in range(blocks):
-        print "b%i" % i,
+        #print "b%i" % i,
         block.extend(get_mb(bitreader))
-    print
     return block
 
 def read_picture(bitreader):
@@ -404,7 +372,7 @@ def read_picture(bitreader):
         block.extend(get_mb(bitreader))
     # those are the remaining ones
     for i in range(1, slices):
-        print "Getting Slice", i, slices
+        #print "Getting Slice", i, slices
         block.extend(get_gob(bitreader, blocks))
     bitreader.align()
     eos = bitreader.read(22)
@@ -414,35 +382,43 @@ def read_picture(bitreader):
     print len(block)
     print 'time', datetime.datetime.now() - t
     # print the image
-    from PIL import Image
-    im = Image.new("RGBA", (blocks*16, slices*16))
-    i = 0
-    for sl in range(slices):
-        for bl in range(blocks):
-            for j in range(4):
-                for y in range(8):
-                    for x in range(8):
-                        r, g, b = block[i]
-                        if j == 0:
-                            im.putpixel((bl*16+x, sl*16+y), (r, g, b))
-                        if j == 1:
-                           im.putpixel((bl*16+x+8, sl*16+y), (r, g, b))
-                        if j == 2:
-                           im.putpixel((bl*16+x, sl*16+y+8), (r, g, b))
-                        if j == 3:
-                           im.putpixel((bl*16+x+8, sl*16+y+8), (r, g, b))
-                        i += 1
-    im.show()
+    #from PIL import Image
+    #im = Image.new("RGBA", (blocks*16, slices*16))
+    #i = 0
+    #for sl in range(slices):
+    #    for bl in range(blocks):
+    #        for j in range(4):
+    #            for y in range(8):
+    #                for x in range(8):
+    #                    r, g, b = block[i]
+    #                    if j == 0:
+    #                        im.putpixel((bl*16+x, sl*16+y), (r, g, b))
+    #                    if j == 1:
+    #                       im.putpixel((bl*16+x+8, sl*16+y), (r, g, b))
+    #                    if j == 2:
+    #                       im.putpixel((bl*16+x, sl*16+y+8), (r, g, b))
+    #                    if j == 3:
+    #                       im.putpixel((bl*16+x+8, sl*16+y+8), (r, g, b))
+    #                    i += 1
+    #im.show()
 
 
 def _pp(name, value):
     #return
     print "%s\t\t%s\t%s" % (name, str(bin(value)), str(value))
 
-if __name__ == '__main__':
+
+
+
+def main():
     fh = open('videoframe.raw', 'r')
     data = fh.read()
     fh.close()
     br = BitReader(data)
     read_picture(br)
 
+
+if __name__ == '__main__':
+    import cProfile
+    #stats = cProfile.run('main()')
+    main()
