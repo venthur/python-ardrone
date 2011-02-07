@@ -118,6 +118,7 @@ def get_pheader(bitreader):
     return width, height
 
 
+
 def inverse_dct(block):
 
     workspace = [0 for i in range(64)]
@@ -353,7 +354,7 @@ def get_block(bitreader, has_coeff):
         additional = bitreader.read(toread)
         # add as many zeros to out_list as indicated by additional bits
         # if zerocount is 0, tmp = 0 else the 1 merged with additional bits
-        tmp = 0 if zerocount == 0 else (1 << toread) + additional
+        tmp = 0 if zerocount == 0 else (1 << toread) | additional
         for i in range(tmp):
             out_list.append(0)
 
@@ -368,7 +369,7 @@ def get_block(bitreader, has_coeff):
         # get number of remaining bits to read
         toread = 0 if zerocount == 0 else zerocount - 1
         additional = bitreader.read(toread)
-        tmp = (1 << toread) + additional
+        tmp = (1 << toread) | additional
         # get one more bit for the sign
         tmp = -tmp if bitreader.read(1) else tmp
         out_list.append(tmp)
