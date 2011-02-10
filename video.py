@@ -24,6 +24,44 @@ iquant_tab = [ 3,  5,  7,  9, 11, 13, 15, 17,
               15, 17, 19, 21, 23, 25, 27, 29,
               17, 19, 21, 23, 25, 27, 29, 31]
 
+# Used for upscaling the 8x8 b- and r-blocks to 16x16
+scalemap = [ 0,  0,  1,  1,  2,  2,  3,  3,
+             0,  0,  1,  1,  2,  2,  3,  3,
+             8,  8,  9,  9, 10, 10, 11, 11,
+             8,  8,  9,  9, 10, 10, 11, 11,
+            16, 16, 17, 17, 18, 18, 19, 19,
+            16, 16, 17, 17, 18, 18, 19, 19,
+            24, 24, 25, 25, 26, 26, 27, 27,
+            24, 24, 25, 25, 26, 26, 27, 27,
+
+             4,  4,  5,  5,  6,  6,  7,  7,
+             4,  4,  5,  5,  6,  6,  7,  7,
+            12, 12, 13, 13, 14, 14, 15, 15,
+            12, 12, 13, 13, 14, 14, 15, 15,
+            20, 20, 21, 21, 22, 22, 23, 23,
+            20, 20, 21, 21, 22, 22, 23, 23,
+            28, 28, 29, 29, 30, 30, 31, 31,
+            28, 28, 29, 29, 30, 30, 31, 31,
+
+            32, 32, 33, 33, 34, 34, 35, 35,
+            32, 32, 33, 33, 34, 34, 35, 35,
+            40, 40, 41, 41, 42, 42, 43, 43,
+            40, 40, 41, 41, 42, 42, 43, 43,
+            48, 48, 49, 49, 50, 50, 51, 51,
+            48, 48, 49, 49, 50, 50, 51, 51,
+            56, 56, 57, 57, 58, 58, 59, 59,
+            56, 56, 57, 57, 58, 58, 59, 59,
+
+            36, 36, 37, 37, 38, 38, 39, 39,
+            36, 36, 37, 37, 38, 38, 39, 39,
+            44, 44, 45, 45, 46, 46, 47, 47,
+            44, 44, 45, 45, 46, 46, 47, 47,
+            52, 52, 53, 53, 54, 54, 55, 55,
+            52, 52, 53, 53, 54, 54, 55, 55,
+            60, 60, 61, 61, 62, 62, 63, 63,
+            60, 60, 61, 61, 62, 62, 63, 63]
+
+
 FIX_0_298631336 = 2446
 FIX_0_390180644 = 3196
 FIX_0_541196100 = 4433
@@ -70,6 +108,8 @@ class BitReader(object):
         return res
 
     def read(self, nbits):
+        if nbits == 0:
+            return 0b0
         # Read enough bits into chunk so we have at least nbits available
         while nbits > self.bits_left:
             self.chunk = self.chunk << (self.size * 8)
@@ -258,42 +298,6 @@ def decode_block(block):
     return tmp
 
 
-scalemap = [ 0,  0,  1,  1,  2,  2,  3,  3,
-             0,  0,  1,  1,  2,  2,  3,  3,
-             8,  8,  9,  9, 10, 10, 11, 11,
-             8,  8,  9,  9, 10, 10, 11, 11,
-            16, 16, 17, 17, 18, 18, 19, 19,
-            16, 16, 17, 17, 18, 18, 19, 19,
-            24, 24, 25, 25, 26, 26, 27, 27,
-            24, 24, 25, 25, 26, 26, 27, 27,
-
-             4,  4,  5,  5,  6,  6,  7,  7,
-             4,  4,  5,  5,  6,  6,  7,  7,
-            12, 12, 13, 13, 14, 14, 15, 15,
-            12, 12, 13, 13, 14, 14, 15, 15,
-            20, 20, 21, 21, 22, 22, 23, 23,
-            20, 20, 21, 21, 22, 22, 23, 23,
-            28, 28, 29, 29, 30, 30, 31, 31,
-            28, 28, 29, 29, 30, 30, 31, 31,
-
-            32, 32, 33, 33, 34, 34, 35, 35,
-            32, 32, 33, 33, 34, 34, 35, 35,
-            40, 40, 41, 41, 42, 42, 43, 43,
-            40, 40, 41, 41, 42, 42, 43, 43,
-            48, 48, 49, 49, 50, 50, 51, 51,
-            48, 48, 49, 49, 50, 50, 51, 51,
-            56, 56, 57, 57, 58, 58, 59, 59,
-            56, 56, 57, 57, 58, 58, 59, 59,
-
-            36, 36, 37, 37, 38, 38, 39, 39,
-            36, 36, 37, 37, 38, 38, 39, 39,
-            44, 44, 45, 45, 46, 46, 47, 47,
-            44, 44, 45, 45, 46, 46, 47, 47,
-            52, 52, 53, 53, 54, 54, 55, 55,
-            52, 52, 53, 53, 54, 54, 55, 55,
-            60, 60, 61, 61, 62, 62, 63, 63,
-            60, 60, 61, 61, 62, 62, 63, 63]
-
 
 def scale_block(b):
     """Scale an 8x8 block up to 4 8x8 blocks."""
@@ -304,7 +308,7 @@ def scale_block(b):
 
 def get_mb(bitreader):
     mbc = bitreader.read(1)
-    mbdesc = 0
+    block = [0 for i in range(8*8*4)]
     if mbc == 0:
         mbdesc = bitreader.read(8)
         assert(mbdesc & 0b10000000)
@@ -321,7 +325,6 @@ def get_mb(bitreader):
         cb = scale_block(cb)
         cr = scale_block(cr)
         # ycbcr to rgb
-        block = [0 for i in range(8*8*4)]
         for i in range(8*8*4):
             Y = y[i] - 16
             B = cb[i] - 128
@@ -336,6 +339,7 @@ def get_mb(bitreader):
                     v = 255
             block[i] = [r, g, b]
     return block
+
 
 def get_block(bitreader, has_coeff):
     # read the first 10 bits in a 16 bit datum
@@ -388,10 +392,10 @@ def get_gob(bitreader, blocks):
          (gobsc & 0b1111111111111111000000)):
         print "Got wrong GOBSC, aborting.", bin(gobsc)
         return False
-    #print 'GOBSC:', gobsc & 0b11111
+    print 'GOBSC:', gobsc & 0b11111
     _ = bitreader.read(5)
     for i in range(blocks):
-        #print "b%i" % i,
+        print "b%i" % i
         block.extend(get_mb(bitreader))
     return block
 
@@ -443,15 +447,13 @@ def _pp(name, value):
     print "%s\t\t%s\t%s" % (name, str(bin(value)), str(value))
 
 
-
-
 def main():
     fh = open('videoframe.raw', 'r')
+    #fh = open('video.raw', 'r')
     data = fh.read()
     fh.close()
     br = BitReader(data)
     read_picture(br)
-
 
 if __name__ == '__main__':
     import cProfile
