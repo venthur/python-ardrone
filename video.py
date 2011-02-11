@@ -1,8 +1,8 @@
 
 
 import struct
-#import psyco
-#psyco.full()
+import psyco
+psyco.full()
 
 # from zig-zag back to normal
 ZIG_ZAG_POSITIONS = [ 0,  1,  8, 16,  9,  2, 3, 10,
@@ -61,6 +61,18 @@ scalemap = [ 0,  0,  1,  1,  2,  2,  3,  3,
             60, 60, 61, 61, 62, 62, 63, 63,
             60, 60, 61, 61, 62, 62, 63, 63]
 
+clzlut = [8, 7, 6, 6, 5, 5, 5, 5, 4, 4, 4, 4, 4,
+          4, 4, 4, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 2, 2, 2,
+          2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+          2, 2, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+          1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+          1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+          1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+          0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+          0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+          0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+          0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+          0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 
 FIX_0_298631336 = 2446
 FIX_0_390180644 = 3196
@@ -348,14 +360,25 @@ def get_block(bitreader, has_coeff):
     if not has_coeff:
         return out_list
     while 1:
+        streamlen = 0
+        data = bitreader.peek(32)
         # count the zeros
-        zerocount = 0
-        while bitreader.read(1) == 0:
-            zerocount += 1
+        #zerocount = cout_leading_zeros(data)
+        zerocount = clzlut[data >> 24];
+        if zerocount == 8:
+            zerocount += clzlut[(data >> 16) & 0xFF];
+        if zerocount == 16:
+            zerocount += clzlut[(data >> 8) & 0xFF];
+        if zerocount == 24:
+            zerocount += clzlut[data & 0xFF];
+        data = (data << (zerocount + 1)) & 0xffffffff
+        streamlen += zerocount + 1
         assert(zerocount <= 6)
         # get number of remaining bits to read
         toread = 0 if zerocount <= 1 else zerocount - 1
-        additional = bitreader.read(toread)
+        additional = data >> (32 - toread)
+        data = (data << toread) & 0xffffffff
+        streamlen += toread
         # add as many zeros to out_list as indicated by additional bits
         # if zerocount is 0, tmp = 0 else the 1 merged with additional bits
         tmp = 0 if zerocount == 0 else (1 << toread) | additional
@@ -363,20 +386,32 @@ def get_block(bitreader, has_coeff):
             out_list.append(0)
 
         # count the zeros
-        zerocount = 0
-        while bitreader.read(1) == 0:
-            zerocount += 1
+        #zerocount = cout_leading_zeros(data)
+        zerocount = clzlut[data >> 24];
+        if zerocount == 8:
+            zerocount += clzlut[(data >> 16) & 0xFF];
+        if zerocount == 16:
+            zerocount += clzlut[(data >> 8) & 0xFF];
+        if zerocount == 24:
+            zerocount += clzlut[data & 0xFF];
+        data = (data << (zerocount + 1)) & 0xffffffff
+        streamlen += zerocount + 1
         assert(zerocount <= 7)
         # 01 == EOB
         if zerocount == 1:
+            bitreader.read(streamlen)
             break
         # get number of remaining bits to read
         toread = 0 if zerocount == 0 else zerocount - 1
-        additional = bitreader.read(toread)
+        additional = data >> (32 - toread)
+        data = (data << toread) & 0xffffffff
+        streamlen += toread
         tmp = (1 << toread) | additional
         # get one more bit for the sign
-        tmp = -tmp if bitreader.read(1) else tmp
+        tmp = -tmp if data >> (32 - 1) else tmp
+        streamlen += 1
         out_list.append(tmp)
+        bitreader.read(streamlen)
     assert(len(out_list) <= 64)
     out_list = map(int, out_list)
     return out_list
@@ -392,10 +427,10 @@ def get_gob(bitreader, blocks):
          (gobsc & 0b1111111111111111000000)):
         print "Got wrong GOBSC, aborting.", bin(gobsc)
         return False
-    print 'GOBSC:', gobsc & 0b11111
+    #print 'GOBSC:', gobsc & 0b11111
     _ = bitreader.read(5)
     for i in range(blocks):
-        print "b%i" % i
+        #print "b%i" % i
         block.extend(get_mb(bitreader))
     return block
 
@@ -457,5 +492,5 @@ def main():
 
 if __name__ == '__main__':
     import cProfile
-    stats = cProfile.run('main()')
-    #main()
+    #cProfile.run('main()')
+    main()
