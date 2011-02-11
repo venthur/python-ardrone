@@ -1,8 +1,8 @@
 
 
 import struct
-import psyco
-psyco.full()
+#import psyco
+#psyco.full()
 
 # from zig-zag back to normal
 ZIG_ZAG_POSITIONS = [ 0,  1,  8, 16,  9,  2, 3, 10,
@@ -113,15 +113,11 @@ class BitReader(object):
                                              self.offset*self.size)[0]
             self.offset += 1
             self.bits_left += self.size * 8
-        mask = 2**nbits-1
-        mask = mask << (self.bits_left - nbits)
-        res = self.chunk & mask
-        res = res >> (self.bits_left - nbits)
+        mask = (2**nbits-1) << (self.bits_left - nbits)
+        res = (self.chunk & mask) >> (self.bits_left - nbits)
         return res
 
     def read(self, nbits):
-        if nbits == 0:
-            return 0b0
         # Read enough bits into chunk so we have at least nbits available
         while nbits > self.bits_left:
             self.chunk = self.chunk << (self.size * 8)
@@ -131,10 +127,8 @@ class BitReader(object):
             self.offset += 1
             self.bits_left += self.size * 8
         # Get the first nbits bits from chunk (and remove them from chunk)
-        mask = 2**nbits-1
-        mask = mask << (self.bits_left - nbits)
-        res = self.chunk & mask
-        res = res >> (self.bits_left - nbits)
+        mask = (2**nbits-1) << (self.bits_left - nbits)
+        res = (self.chunk & mask) >> (self.bits_left - nbits)
         self.chunk = self.chunk & ~mask
         self.bits_left -= nbits
         self.read_bits += nbits
@@ -492,5 +486,5 @@ def main():
 
 if __name__ == '__main__':
     import cProfile
-    #cProfile.run('main()')
-    main()
+    cProfile.run('main()')
+    #main()
