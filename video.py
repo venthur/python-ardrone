@@ -341,11 +341,12 @@ def get_mb(bitreader):
             r = (298 * Y           + 409 * R + 128) >> 8
             g = (298 * Y - 100 * B - 208 * R + 128) >> 8
             b = (298 * Y + 516 * B           + 128) >> 8
-            for v in r, g, b:
-                if v < 0:
-                    v = 0
-                elif v > 255:
-                    v = 255
+            r = 0 if r < 0 else r
+            r = 255 if r > 255 else r
+            g = 0 if g < 0 else g
+            g = 255 if g > 0 else g
+            b = 0 if b < 0 else b
+            b = 255 if b > 255 else b
             block[i] = [r, g, b]
     return block
 
