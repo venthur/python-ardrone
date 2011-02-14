@@ -1,8 +1,8 @@
 
-
+import sys
 import struct
-#import psyco
-#psyco.full()
+import psyco
+psyco.full()
 
 # from zig-zag back to normal
 ZIG_ZAG_POSITIONS = [ 0,  1,  8, 16,  9,  2, 3, 10,
@@ -102,33 +102,36 @@ class BitReader(object):
         self.chunk = 0
         self.fc = '<I'
         self.size = struct.calcsize(self.fc)
+        self.size_bits = self.size * 8
         self.read_bits = 0
 
     def peek(self, nbits):
         # Read enough bits into chunk so we have at least nbits available
         while nbits > self.bits_left:
-            self.chunk = self.chunk << (self.size * 8)
+            self.chunk <<= self.size_bits
             self.chunk |= struct.unpack_from(self.fc,
                                              self.packet,
                                              self.offset*self.size)[0]
             self.offset += 1
-            self.bits_left += self.size * 8
-        mask = (2**nbits-1) << (self.bits_left - nbits)
-        res = (self.chunk & mask) >> (self.bits_left - nbits)
+            self.bits_left += self.size_bits
+        shift = self.bits_left - nbits
+        mask = (2**nbits-1) << shift
+        res = (self.chunk & mask) >> shift
         return res
 
     def read(self, nbits):
         # Read enough bits into chunk so we have at least nbits available
         while nbits > self.bits_left:
-            self.chunk = self.chunk << (self.size * 8)
+            self.chunk <<= self.size_bits
             self.chunk |= struct.unpack_from(self.fc,
                                              self.packet,
                                              self.offset*self.size)[0]
             self.offset += 1
-            self.bits_left += self.size * 8
+            self.bits_left += self.size_bits
         # Get the first nbits bits from chunk (and remove them from chunk)
-        mask = (2**nbits-1) << (self.bits_left - nbits)
-        res = (self.chunk & mask) >> (self.bits_left - nbits)
+        shift = self.bits_left - nbits
+        mask = (2**nbits-1) << shift
+        res = (self.chunk & mask) >> shift
         self.chunk = self.chunk & ~mask
         self.bits_left -= nbits
         self.read_bits += nbits
@@ -485,6 +488,9 @@ def main():
     read_picture(br)
 
 if __name__ == '__main__':
-    import cProfile
-    cProfile.run('main()')
-    #main()
+    if 'profile' in sys.argv:
+        import cProfile
+        cProfile.run('main()')
+    else:
+        main()
+
