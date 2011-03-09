@@ -107,19 +107,9 @@ class BitReader(object):
 
     def peek(self, nbits):
         # Read enough bits into chunk so we have at least nbits available
-        while nbits > self.bits_left:
-            self.chunk <<= self.size_bits
-            self.chunk |= struct.unpack_from(self.fc,
-                                             self.packet,
-                                             self.offset*self.size)[0]
-            self.offset += 1
-            self.bits_left += self.size_bits
-        shift = self.bits_left - nbits
-        mask = (2**nbits-1) << shift
-        res = (self.chunk & mask) >> shift
-        return res
+        return self.read(nbits, False)
 
-    def read(self, nbits):
+    def read(self, nbits, consume=True):
         # Read enough bits into chunk so we have at least nbits available
         while nbits > self.bits_left:
             self.chunk <<= self.size_bits
@@ -130,11 +120,12 @@ class BitReader(object):
             self.bits_left += self.size_bits
         # Get the first nbits bits from chunk (and remove them from chunk)
         shift = self.bits_left - nbits
-        mask = (2**nbits-1) << shift
-        res = (self.chunk & mask) >> shift
-        self.chunk = self.chunk & ~mask
-        self.bits_left -= nbits
-        self.read_bits += nbits
+        res = self.chunk >> shift
+        if consume:
+            mask = (2**nbits-1) << shift
+            self.chunk = self.chunk & ~mask
+            self.bits_left -= nbits
+            self.read_bits += nbits
         return res
 
     def align(self):
