@@ -1,31 +1,35 @@
+#!/usr/bin/env python
 
-import sys
+import array
+import cProfile
+import datetime
 import struct
+import sys
 import psyco
 psyco.full()
 
 # from zig-zag back to normal
-ZIG_ZAG_POSITIONS = [ 0,  1,  8, 16,  9,  2, 3, 10,
+ZIG_ZAG_POSITIONS = array.array('B', ( 0,  1,  8, 16,  9,  2, 3, 10,
                      17, 24, 32, 25, 18, 11, 4,  5,
                      12, 19, 26, 33, 40, 48, 41, 34,
                      27, 20, 13,  6,  7, 14, 21, 28,
                      35, 42, 49, 56, 57, 50, 43, 36,
                      29, 22, 15, 23, 30, 37, 44, 51,
                      58, 59, 52, 45, 38, 31, 39, 46,
-                     53, 60, 61, 54, 47, 55, 62, 63]
+                     53, 60, 61, 54, 47, 55, 62, 63))
 
 # int16_t
-iquant_tab = [ 3,  5,  7,  9, 11, 13, 15, 17,
+iquant_tab = array.array('B', ( 3,  5,  7,  9, 11, 13, 15, 17,
                5,  7,  9, 11, 13, 15, 17, 19,
                7,  9, 11, 13, 15, 17, 19, 21,
                9, 11, 13, 15, 17, 19, 21, 23,
               11, 13, 15, 17, 19, 21, 23, 25,
               13, 15, 17, 19, 21, 23, 25, 27,
               15, 17, 19, 21, 23, 25, 27, 29,
-              17, 19, 21, 23, 25, 27, 29, 31]
+              17, 19, 21, 23, 25, 27, 29, 31))
 
 # Used for upscaling the 8x8 b- and r-blocks to 16x16
-scalemap = [ 0,  0,  1,  1,  2,  2,  3,  3,
+scalemap = array.array('B', ( 0,  0,  1,  1,  2,  2,  3,  3,
              0,  0,  1,  1,  2,  2,  3,  3,
              8,  8,  9,  9, 10, 10, 11, 11,
              8,  8,  9,  9, 10, 10, 11, 11,
@@ -59,9 +63,9 @@ scalemap = [ 0,  0,  1,  1,  2,  2,  3,  3,
             52, 52, 53, 53, 54, 54, 55, 55,
             52, 52, 53, 53, 54, 54, 55, 55,
             60, 60, 61, 61, 62, 62, 63, 63,
-            60, 60, 61, 61, 62, 62, 63, 63]
+            60, 60, 61, 61, 62, 62, 63, 63))
 
-clzlut = [8, 7, 6, 6, 5, 5, 5, 5, 4, 4, 4, 4, 4,
+clzlut = array.array('B', (8, 7, 6, 6, 5, 5, 5, 5, 4, 4, 4, 4, 4,
           4, 4, 4, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 2, 2, 2,
           2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
           2, 2, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
@@ -72,7 +76,7 @@ clzlut = [8, 7, 6, 6, 5, 5, 5, 5, 4, 4, 4, 4, 4,
           0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
           0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
           0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-          0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+          0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0))
 
 FIX_0_298631336 = 2446
 FIX_0_390180644 = 3196
@@ -100,37 +104,28 @@ class BitReader(object):
         self.offset = 0
         self.bits_left = 0
         self.chunk = 0
-        self.fc = '<I'
-        self.size = struct.calcsize(self.fc)
-        self.size_bits = self.size * 8
         self.read_bits = 0
-
-    def peek(self, nbits):
-        # Read enough bits into chunk so we have at least nbits available
-        return self.read(nbits, False)
 
     def read(self, nbits, consume=True):
         # Read enough bits into chunk so we have at least nbits available
         while nbits > self.bits_left:
-            self.chunk <<= self.size_bits
-            self.chunk |= struct.unpack_from(self.fc,
-                                             self.packet,
-                                             self.offset*self.size)[0]
-            self.offset += 1
-            self.bits_left += self.size_bits
+            try:
+                self.chunk = (self.chunk << 32) | struct.unpack_from('<I', self.packet, self.offset)[0]
+            except:
+                self.chunk <<= 32
+            self.offset += 4
+            self.bits_left += 32
         # Get the first nbits bits from chunk (and remove them from chunk)
         shift = self.bits_left - nbits
         res = self.chunk >> shift
         if consume:
-            mask = (2**nbits-1) << shift
-            self.chunk = self.chunk & ~mask
+            self.chunk -= res << shift
             self.bits_left -= nbits
             self.read_bits += nbits
         return res
 
     def align(self):
         shift = (8 - self.read_bits) % 8
-        #print "shifting: ", shift
         self.read(shift)
 
 
@@ -158,19 +153,19 @@ def get_pheader(bitreader):
     return width, height
 
 
-
 def inverse_dct(block):
+    workspace = zeros[0:64]
+    data = zeros[0:64]
 
-    workspace = [0 for i in range(64)]
-    data = [0 for i in range(64)]
     for pointer in range(8):
+
         if (block[pointer + 8] == 0 and block[pointer + 16] == 0 and
             block[pointer + 24] == 0 and block[pointer + 32] == 0 and
             block[pointer + 40] == 0 and block[pointer + 48] == 0 and
             block[pointer + 56] == 0):
             dcval = block[pointer] << PASS1_BITS
             for i in range(8):
-                workspace[pointer + 8*i] = dcval
+                workspace[pointer + i*8] = dcval
             continue
 
         z2 = block[pointer + 16]
@@ -228,8 +223,8 @@ def inverse_dct(block):
         workspace[pointer + 24] = ((tmp13 + tmp0 + (1 << F1)) >> F2)
         workspace[pointer + 32] = ((tmp13 - tmp0 + (1 << F1)) >> F2)
 
+    for pointer in range(0, 64, 8):
 
-    for pointer in range(0, 8*8, 8):
         z2 = workspace[pointer + 2]
         z3 = workspace[pointer + 6]
 
@@ -286,124 +281,228 @@ def inverse_dct(block):
     return data
 
 
-def decode_block(block):
-    # de-zic-zag
-    tmp = [0 for i in range(64)]
-    for i in range(len(block)):
-        tmp[ZIG_ZAG_POSITIONS[i]] = block[i]
-    # de-quant
-    for i in range(64):
-        tmp[i] *= iquant_tab[i]
-    tmp = inverse_dct(tmp)
-    return tmp
+#def decode_block(block):
+#    # de-zic-zag
+#    tmp = zeros[:64]
+#    for i in range(len(block)):
+#        tmp[ZIG_ZAG_POSITIONS[i]] = block[i]
+#    # de-quant
+#    for i in range(64):
+#        tmp[i] *= iquant_tab[i]
+#    tmp = inverse_dct(tmp)
+#    return tmp
+#
+#
+#
+#def scale_block(b):
+#    """Scale an 8x8 block up to 4 8x8 blocks."""
+#    br = zeros[0:256]
+#    for i in range(256):
+#        br[i] = b[scalemap[i]]
+#    return br
 
-
-
-def scale_block(b):
-    """Scale an 8x8 block up to 4 8x8 blocks."""
-    br = [0 for i in range(4*8*8)]
-    for i in range(4*8*8):
-        br[i] = b[scalemap[i]]
-    return br
 
 def get_mb(bitreader):
     mbc = bitreader.read(1)
-    block = [0 for i in range(8*8*4)]
+    block = zeros[0:256]
     if mbc == 0:
+        y = zeros[0:256]
         mbdesc = bitreader.read(8)
-        assert(mbdesc & 0b10000000)
-        if mbdesc & 0b01000000:
+        assert(mbdesc >> 7 & 1)
+        if mbdesc >> 6 & 1:
             mbdiff = bitreader.read(2)
-        y = []
-        y.extend(decode_block(get_block(bitreader, (mbdesc >> 0) & 1)))
-        y.extend(decode_block(get_block(bitreader, (mbdesc >> 1) & 1)))
-        y.extend(decode_block(get_block(bitreader, (mbdesc >> 2) & 1)))
-        y.extend(decode_block(get_block(bitreader, (mbdesc >> 3) & 1)))
-        cb = decode_block(get_block(bitreader, (mbdesc >> 4) & 1))
-        cr = decode_block(get_block(bitreader, (mbdesc >> 5) & 1))
+        y[0:63] = get_block2(bitreader, mbdesc & 1)
+        y[64:127] = get_block2(bitreader, mbdesc >> 1 & 1)
+        y[128:191] = get_block2(bitreader, mbdesc >> 2 & 1)
+        y[192:255] = get_block2(bitreader, mbdesc >> 3 & 1)
+        cb = get_block2(bitreader, mbdesc >> 4 & 1)
+        cr = get_block2(bitreader, mbdesc >> 5 & 1)
+        #y = decode_block(get_block(bitreader, (mbdesc >> 0) & 1))
+        #y.extend(decode_block(get_block(bitreader, (mbdesc >> 1) & 1)))
+        #y.extend(decode_block(get_block(bitreader, (mbdesc >> 2) & 1)))
+        #y.extend(decode_block(get_block(bitreader, (mbdesc >> 3) & 1)))
+        #cb = decode_block(get_block(bitreader, (mbdesc >> 4) & 1))
+        #cr = decode_block(get_block(bitreader, (mbdesc >> 5) & 1))
         # upscale cb and cr to make calculations below more efficient
-        cb = scale_block(cb)
-        cr = scale_block(cr)
+        #cb = scale_block(cb)
+        #cr = scale_block(cr)
         # ycbcr to rgb
-        for i in range(8*8*4):
+        for i in range(256):
+            j = scalemap[i]
             Y = y[i] - 16
-            B = cb[i] - 128
-            R = cr[i] - 128
+            B = cb[j] - 128
+            R = cr[j] - 128
             r = (298 * Y           + 409 * R + 128) >> 8
             g = (298 * Y - 100 * B - 208 * R + 128) >> 8
             b = (298 * Y + 516 * B           + 128) >> 8
             r = 0 if r < 0 else r
             r = 255 if r > 255 else r
             g = 0 if g < 0 else g
-            g = 255 if g > 0 else g
+            g = 255 if g > 255 else g
             b = 0 if b < 0 else b
             b = 255 if b > 255 else b
-            block[i] = [r, g, b]
+            block[i] = r, g, b
+    else:
+        print "mbc was not zero"
     return block
 
+zeros = [0 for i in range(256)]
+
+
+
+def _first_half(data):
+    # data has to be 12 bits wide
+    streamlen = 0
+    # count the zeros
+    zerocount = clzlut[data >> 4];
+    data = (data << (zerocount + 1)) & 0b111111111111
+    streamlen += zerocount + 1
+    # get number of remaining bits to read
+    toread = 0 if zerocount <= 1 else zerocount - 1
+    additional = data >> (12 - toread)
+    data = (data << toread) & 0b111111111111
+    streamlen += toread
+    # add as many zeros to out_list as indicated by additional bits
+    # if zerocount is 0, tmp = 0 else the 1 merged with additional bits
+    tmp = 0 if zerocount == 0 else (1 << toread) | additional
+    return [streamlen, tmp]
+
+def _second_half(data):
+    # data has to be 15 bits wide
+    streamlen = 0
+    zerocount = clzlut[data >> 7];
+    data = (data << (zerocount + 1)) & 0b111111111111111
+    streamlen += zerocount + 1
+    # 01 == EOB
+    eob = False
+    if zerocount == 1:
+        eob = True
+        return [streamlen, None, eob]
+    # get number of remaining bits to read
+    toread = 0 if zerocount == 0 else zerocount - 1
+    additional = data >> (15 - toread)
+    data = (data << toread) & 0b111111111111111
+    streamlen += toread
+    tmp = (1 << toread) | additional
+    # get one more bit for the sign
+    tmp = -tmp if data >> (15 - 1) else tmp
+    tmp = int(tmp)
+    streamlen += 1
+    return [streamlen, tmp, eob]
+
+FH = [_first_half(i) for i in range(2**12)]
+SH = [_second_half(i) for i in range(2**15)]
 
 def get_block(bitreader, has_coeff):
     # read the first 10 bits in a 16 bit datum
-    out_list = []
-    out_list.append(int(bitreader.read(10)))
+    out_list = zeros[0:64]
+    #out_list[0] = int(bitreader.read(10))
+    out_list[0] = int(bitreader.read(10)) * iquant_tab[0]
+    #out_list = [int(bitreader.read(10))]
     if not has_coeff:
-        return out_list
+        return inverse_dct(out_list)
+    i = 1
     while 1:
-        streamlen = 0
-        data = bitreader.peek(32)
-        # count the zeros
-        #zerocount = cout_leading_zeros(data)
-        zerocount = clzlut[data >> 24];
-        if zerocount == 8:
-            zerocount += clzlut[(data >> 16) & 0xFF];
-        if zerocount == 16:
-            zerocount += clzlut[(data >> 8) & 0xFF];
-        if zerocount == 24:
-            zerocount += clzlut[data & 0xFF];
-        data = (data << (zerocount + 1)) & 0xffffffff
-        streamlen += zerocount + 1
-        assert(zerocount <= 6)
-        # get number of remaining bits to read
-        toread = 0 if zerocount <= 1 else zerocount - 1
-        additional = data >> (32 - toread)
-        data = (data << toread) & 0xffffffff
-        streamlen += toread
-        # add as many zeros to out_list as indicated by additional bits
-        # if zerocount is 0, tmp = 0 else the 1 merged with additional bits
-        tmp = 0 if zerocount == 0 else (1 << toread) | additional
-        for i in range(tmp):
-            out_list.append(0)
+        #streamlen = 0
+        data = bitreader.read(32, False)
 
-        # count the zeros
-        #zerocount = cout_leading_zeros(data)
-        zerocount = clzlut[data >> 24];
-        if zerocount == 8:
-            zerocount += clzlut[(data >> 16) & 0xFF];
-        if zerocount == 16:
-            zerocount += clzlut[(data >> 8) & 0xFF];
-        if zerocount == 24:
-            zerocount += clzlut[data & 0xFF];
-        data = (data << (zerocount + 1)) & 0xffffffff
-        streamlen += zerocount + 1
-        assert(zerocount <= 7)
-        # 01 == EOB
-        if zerocount == 1:
-            bitreader.read(streamlen)
-            break
-        # get number of remaining bits to read
-        toread = 0 if zerocount == 0 else zerocount - 1
-        additional = data >> (32 - toread)
-        data = (data << toread) & 0xffffffff
-        streamlen += toread
-        tmp = (1 << toread) | additional
-        # get one more bit for the sign
-        tmp = -tmp if data >> (32 - 1) else tmp
-        streamlen += 1
-        out_list.append(tmp)
+        ## count the zeros
+        #zerocount = clzlut[data >> 24];
+        #data = (data << (zerocount + 1)) & 0xffffffff
+        #streamlen += zerocount + 1
+        #assert(zerocount <= 6)
+        ## get number of remaining bits to read
+        #toread = 0 if zerocount <= 1 else zerocount - 1
+        #additional = data >> (32 - toread)
+        #data = (data << toread) & 0xffffffff
+        #streamlen += toread
+        ## add as many zeros to out_list as indicated by additional bits
+        ## if zerocount is 0, tmp = 0 else the 1 merged with additional bits
+        #tmp = 0 if zerocount == 0 else (1 << toread) | additional
+        #out_list.extend(zeros[0:tmp])
+        
+        streamlen, tmp = FH[data >> 20]
+        data = (data << streamlen) & 0xffffffff
+        i += tmp
+        #for j in tmp:
+        #    out_list[i] = j
+        #    i += 1
+        #out_list.extend(tmp)
+
+        ## count the zeros
+        #zerocount = clzlut[data >> 24];
+        #data = (data << (zerocount + 1)) & 0xffffffff
+        #streamlen += zerocount + 1
+        #assert(zerocount <= 7)
+        ## 01 == EOB
+        #if zerocount == 1:
+        #    bitreader.read(streamlen)
+        #    break
+        ## get number of remaining bits to read
+        #toread = 0 if zerocount == 0 else zerocount - 1
+        #additional = data >> (32 - toread)
+        #data = (data << toread) & 0xffffffff
+        #streamlen += toread
+        #tmp = (1 << toread) | additional
+        ## get one more bit for the sign
+        #tmp = -tmp if data >> (32 - 1) else tmp
+        #streamlen += 1
+        #out_list.append(tmp)
+        #bitreader.read(streamlen)
+
+        l, tmp, eob = SH[data >> 17]
+        streamlen += l
         bitreader.read(streamlen)
-    assert(len(out_list) <= 64)
-    out_list = map(int, out_list)
-    return out_list
+        if eob:
+            break
+        #out_list[i] = tmp
+        j = ZIG_ZAG_POSITIONS[i]
+        out_list[j] = tmp*iquant_tab[j]
+        i += 1
+        #out_list.append(tmp)
+
+    #assert(len(out_list) <= 64)
+    #out_list = map(int, out_list)
+    #out_list = [int(i) for i in out_list]
+    return inverse_dct(out_list)
+
+
+TRIES = 16
+MASK = 2**(TRIES*32)-1
+SHIFT = 32*(TRIES-1)
+
+def get_block2(bitreader, has_coeff):
+    # read the first 10 bits in a 16 bit datum
+    out_list = zeros[0:64]
+    out_list[0] = int(bitreader.read(10)) * iquant_tab[0]
+    if not has_coeff:
+        return inverse_dct(out_list)
+    i = 1
+    while 1:
+        _ = bitreader.read(32*TRIES, False)
+        streamlen = 0
+        #######################################################################
+        for j in range(TRIES):
+            data = (_ << streamlen) & MASK
+            data >>= SHIFT
+
+            l, tmp = FH[data >> 20]
+            streamlen += l
+            data = (data << l) & 0xffffffff
+            i += tmp
+
+            l, tmp, eob = SH[data >> 17]
+            streamlen += l
+            if eob:
+                bitreader.read(streamlen)
+                return inverse_dct(out_list)
+            j = ZIG_ZAG_POSITIONS[i]
+            out_list[j] = tmp*iquant_tab[j]
+            i += 1
+        #######################################################################
+        bitreader.read(streamlen)
+    return inverse_dct(out_list)
+
 
 def get_gob(bitreader, blocks):
     block = []
@@ -424,7 +523,6 @@ def get_gob(bitreader, blocks):
     return block
 
 def read_picture(bitreader):
-    import datetime
     t = datetime.datetime.now()
     block = []
     width, height = get_pheader(bitreader)
@@ -440,10 +538,11 @@ def read_picture(bitreader):
     bitreader.align()
     eos = bitreader.read(22)
     assert(eos == 0b0000000000000000111111)
+    t2 = datetime.datetime.now()
     print "\nEND OF PICTURE\n"
     print slices, blocks
     print len(block)
-    print 'time', datetime.datetime.now() - t
+    print 'time', t2 - t, ',', 1. / (t2 - t).microseconds * 1000000, 'fps'
     # print the image
     #from PIL import Image
     #im = Image.new("RGBA", (blocks*16, slices*16))
@@ -472,16 +571,19 @@ def _pp(name, value):
 
 
 def main():
-    fh = open('videoframe.raw', 'r')
+    fh = open('framewireshark.raw', 'r')
+    #fh = open('videoframe.raw', 'r')
     #fh = open('video.raw', 'r')
     data = fh.read()
     fh.close()
-    br = BitReader(data)
-    read_picture(br)
+    for i in range(10):
+        br = BitReader(data)
+        read_picture(br)
+
+
 
 if __name__ == '__main__':
     if 'profile' in sys.argv:
-        import cProfile
         cProfile.run('main()')
     else:
         main()
