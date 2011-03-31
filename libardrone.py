@@ -69,6 +69,13 @@ def XXX():
     at_ref(1, False, True)
     at_ref(1, False, False)
 
+def start_video_stream():
+    """Start enable the video stream."""
+    # send something to the drones video port to trigger sending video data
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sock.sendto("\x01\x00\x00\x00", ('192.168.1.1', 5555))
+    sock.close()
+
 ###############################################################################
 ### Low level AT Commands
 ###############################################################################
