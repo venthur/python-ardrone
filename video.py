@@ -79,6 +79,25 @@ clzlut = array.array('B', (8, 7, 6, 6, 5, 5, 5, 5, 4, 4, 4, 4, 4,
           0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
           0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0))
 
+# Map from pixels from four 8x8 blocks to one 16x16
+MB_TO_GOB_MAP = [0, 1, 2, 3, 4, 5, 6, 7, 16, 17, 18, 19, 20, 21, 22, 23, 32,
+        33, 34, 35, 36, 37, 38, 39, 48, 49, 50, 51, 52, 53, 54, 55, 64, 65, 66,
+        67, 68, 69, 70, 71, 80, 81, 82, 83, 84, 85, 86, 87, 96, 97, 98, 99,
+        100, 101, 102, 103, 112, 113, 114, 115, 116, 117, 118, 119, 8, 9, 10,
+        11, 12, 13, 14, 15, 24, 25, 26, 27, 28, 29, 30, 31, 40, 41, 42, 43, 44,
+        45, 46, 47, 56, 57, 58, 59, 60, 61, 62, 63, 72, 73, 74, 75, 76, 77, 78,
+        79, 88, 89, 90, 91, 92, 93, 94, 95, 104, 105, 106, 107, 108, 109, 110,
+        111, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132,
+        133, 134, 135, 144, 145, 146, 147, 148, 149, 150, 151, 160, 161, 162,
+        163, 164, 165, 166, 167, 176, 177, 178, 179, 180, 181, 182, 183, 192,
+        193, 194, 195, 196, 197, 198, 199, 208, 209, 210, 211, 212, 213, 214,
+        215, 224, 225, 226, 227, 228, 229, 230, 231, 240, 241, 242, 243, 244,
+        245, 246, 247, 136, 137, 138, 139, 140, 141, 142, 143, 152, 153, 154,
+        155, 156, 157, 158, 159, 168, 169, 170, 171, 172, 173, 174, 175, 184,
+        185, 186, 187, 188, 189, 190, 191, 200, 201, 202, 203, 204, 205, 206,
+        207, 216, 217, 218, 219, 220, 221, 222, 223, 232, 233, 234, 235, 236,
+        237, 238, 239, 248, 249, 250, 251, 252, 253, 254, 255]
+
 FIX_0_298631336 = 2446
 FIX_0_390180644 = 3196
 FIX_0_541196100 = 4433
@@ -319,11 +338,8 @@ def get_mb(bitreader):
             g = 255 if g > 255 else g
             b = 0 if b < 0 else b
             b = 255 if b > 255 else b
-            block[i] = r, g, b
-        #print "right before first ybr2rgb"
-        #print idct.ybr2rgb(y, cb, cr, block)
-        #print "right before second ybr2rgb"
-        #block = idct.ybr2rgb(y, cb, cr, block)
+            block[MB_TO_GOB_MAP[i]] = r, g, b
+        #block = idct.ybr2rgb(y, cb, cr, 0)
     else:
         print "mbc was not zero"
     return block
@@ -431,8 +447,13 @@ def get_gob(bitreader, blocks):
     _ = bitreader.read(5)
     for i in range(blocks):
         #print "b%i" % i
-        block.extend(get_mb(bitreader))
-    return block
+        block.append(get_mb(bitreader))
+    # re-arrange the blocks into continous pixels
+    data = []
+    for row in range(16):
+        for b in block:
+            data.extend(b[row*16:(row+1)*16])
+    return data 
 
 def read_picture(bitreader):
     t = datetime.datetime.now()
@@ -440,6 +461,7 @@ def read_picture(bitreader):
     width, height = get_pheader(bitreader)
     slices = height / 16
     blocks = width / 16
+    image = [0 for i in range(width*height)]
     # this is already the first slice
     for i in range(blocks):
         block.extend(get_mb(bitreader))
@@ -456,30 +478,52 @@ def read_picture(bitreader):
     #print len(block)
     #print 'time', t2 - t, ',', 1. / (t2 - t).microseconds * 1000000, 'fps'
     # print the image
-    #from PIL import Image
-    #im = Image.new("RGBA", (blocks*16, slices*16))
-    #i = 0
-    #for sl in range(slices):
-    #    for bl in range(blocks):
-    #        for j in range(4):
-    #            for y in range(8):
-    #                for x in range(8):
-    #                    r, g, b = block[i]
-    #                    if j == 0:
-    #                        im.putpixel((bl*16+x, sl*16+y), (r, g, b))
-    #                    if j == 1:
-    #                       im.putpixel((bl*16+x+8, sl*16+y), (r, g, b))
-    #                    if j == 2:
-    #                       im.putpixel((bl*16+x, sl*16+y+8), (r, g, b))
-    #                    if j == 3:
-    #                       im.putpixel((bl*16+x+8, sl*16+y+8), (r, g, b))
-    #                    i += 1
-    #im.show()
+    show_image(block, width, height)
     return (t2 - t).microseconds / 1000000.
 
 def _pp(name, value):
     #return
     print "%s\t\t%s\t%s" % (name, str(bin(value)), str(value))
+
+import pygame
+pygame.init()
+W, H = 320, 240
+screen = pygame.display.set_mode((W, H))
+surface = pygame.Surface((W, H))
+blocki_to_xy = []
+for sl in range(H / 16):
+    for bl in range(W / 16):
+        for j in range(4):
+            for y in range(8):
+                for x in range(8):
+                    if j == 0:
+                        blocki_to_xy.append((bl*16+x, sl*16+y))
+                    if j == 1:
+                        blocki_to_xy.append((bl*16+x+8, sl*16+y))
+                    if j == 2:
+                        blocki_to_xy.append((bl*16+x, sl*16+y+8))
+                    if j == 3:
+                        blocki_to_xy.append((bl*16+x+8, sl*16+y+8))
+                    i += 1
+
+
+def show_image(block, width, height):
+    #a = [[0 for i in range(H)] for j in range(W)]
+    #a.reshape(height, width, 3)
+    t = datetime.datetime.now()
+    i = 0
+    s = ''.join([''.join([chr(r), chr(g), chr(b)]) for r, g, b in block])
+    #print s
+    ##sarray = pygame.surfarray.make_surface(a)
+    #for pixel in block:
+    #    surface.set_at(blocki_to_xy[i], pixel)
+    #    i += 1
+    surface = pygame.image.fromstring(s, (width, height), 'RGB')
+    screen.blit(surface, (0, 0))
+    #pygame.display.update()
+    pygame.display.flip()
+    t2 = datetime.datetime.now()
+    print (t2-t).microseconds / 1000000.
 
 
 def main():
@@ -497,7 +541,6 @@ def main():
     print
     print 'avg time:\t', t / runs, 'sec'
     print 'avg fps:\t', 1 / (t / runs), 'fps'
-
 
 if __name__ == '__main__':
     if 'profile' in sys.argv:
