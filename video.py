@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+
 import array
 import cProfile
 import datetime
@@ -8,6 +9,7 @@ import sys
 import idct
 import psyco
 psyco.full()
+
 
 # from zig-zag back to normal
 ZIG_ZAG_POSITIONS = array.array('B', ( 0,  1,  8, 16,  9,  2, 3, 10,
@@ -98,6 +100,45 @@ MB_TO_GOB_MAP = array.array('B', [0, 1, 2, 3, 4, 5, 6, 7, 16, 17, 18, 19, 20, 21
         207, 216, 217, 218, 219, 220, 221, 222, 223, 232, 233, 234, 235, 236,
         237, 238, 239, 248, 249, 250, 251, 252, 253, 254, 255])
 
+MB_ROW_MAP = array.array('B', [i / 16 for i in MB_TO_GOB_MAP])
+MB_COL_MAP = array.array('B', [i % 16 for i in MB_TO_GOB_MAP])
+
+MB_ROW_COL_MAP = [[0, 0], [0, 1], [0, 2], [0, 3], [0, 4], [0, 5], [0, 6], [0, 7],
+        [1, 0], [1, 1], [1, 2], [1, 3], [1, 4], [1, 5], [1, 6], [1, 7], [2, 0],
+        [2, 1], [2, 2], [2, 3], [2, 4], [2, 5], [2, 6], [2, 7], [3, 0], [3, 1],
+        [3, 2], [3, 3], [3, 4], [3, 5], [3, 6], [3, 7], [4, 0], [4, 1], [4, 2],
+        [4, 3], [4, 4], [4, 5], [4, 6], [4, 7], [5, 0], [5, 1], [5, 2], [5, 3],
+        [5, 4], [5, 5], [5, 6], [5, 7], [6, 0], [6, 1], [6, 2], [6, 3], [6, 4],
+        [6, 5], [6, 6], [6, 7], [7, 0], [7, 1], [7, 2], [7, 3], [7, 4], [7, 5],
+        [7, 6], [7, 7], [0, 8], [0, 9], [0, 10], [0, 11], [0, 12], [0, 13], [0, 14], 
+        [0, 15], [1, 8], [1, 9], [1, 10], [1, 11], [1, 12], [1, 13],
+        [1, 14], [1, 15], [2, 8], [2, 9], [2, 10], [2, 11], [2, 12], [2, 13],
+        [2, 14], [2, 15], [3, 8], [3, 9], [3, 10], [3, 11], [3, 12], [3, 13],
+        [3, 14], [3, 15], [4, 8], [4, 9], [4, 10], [4, 11], [4, 12], [4, 13],
+        [4, 14], [4, 15], [5, 8], [5, 9], [5, 10], [5, 11], [5, 12], [5, 13],
+        [5, 14], [5, 15], [6, 8], [6, 9], [6, 10], [6, 11], [6, 12], [6, 13],
+        [6, 14], [6, 15], [7, 8], [7, 9], [7, 10], [7, 11], [7, 12], [7, 13],
+        [7, 14], [7, 15], [8, 0], [8, 1], [8, 2], [8, 3], [8, 4], [8, 5], [8, 6],
+        [8, 7], [9, 0], [9, 1], [9, 2], [9, 3], [9, 4], [9, 5], [9, 6],
+        [9, 7], [10, 0], [10, 1], [10, 2], [10, 3], [10, 4], [10, 5], [10, 6],
+        [10, 7], [11, 0], [11, 1], [11, 2], [11, 3], [11, 4], [11, 5], [11, 6],
+        [11, 7], [12, 0], [12, 1], [12, 2], [12, 3], [12, 4], [12, 5], [12, 6],
+        [12, 7], [13, 0], [13, 1], [13, 2], [13, 3], [13, 4], [13, 5], [13, 6],
+        [13, 7], [14, 0], [14, 1], [14, 2], [14, 3], [14, 4], [14, 5], [14, 6],
+        [14, 7], [15, 0], [15, 1], [15, 2], [15, 3], [15, 4], [15, 5], [15, 6],
+        [15, 7], [8, 8], [8, 9], [8, 10], [8, 11], [8, 12], [8, 13], [8, 14],
+        [8, 15], [9, 8], [9, 9], [9, 10], [9, 11], [9, 12], [9, 13], [9, 14],
+        [9, 15], [10, 8], [10, 9], [10, 10], [10, 11], [10, 12], [10, 13], [10, 14],
+        [10, 15], [11, 8], [11, 9], [11, 10], [11, 11], [11, 12], [11, 13], 
+        [11, 14], [11, 15], [12, 8], [12, 9], [12, 10], [12, 11], [12, 12],
+        [12, 13], [12, 14], [12, 15], [13, 8], [13, 9], [13, 10], [13, 11],
+        [13, 12], [13, 13], [13, 14], [13, 15], [14, 8], [14, 9], [14, 10],
+        [14, 11], [14, 12], [14, 13], [14, 14], [14, 15], [15, 8], [15, 9],
+        [15, 10], [15, 11], [15, 12], [15, 13], [15, 14], [15, 15]]
+
+
+zeros = array.array('i', [0 for i in range(256)])
+
 FIX_0_298631336 = 2446
 FIX_0_390180644 = 3196
 FIX_0_541196100 = 4433
@@ -116,6 +157,7 @@ PASS1_BITS = 1
 F1 = CONST_BITS - PASS1_BITS - 1
 F2 = CONST_BITS - PASS1_BITS
 F3 = CONST_BITS + PASS1_BITS + 3
+
 
 class BitReader(object):
 
@@ -301,9 +343,8 @@ def inverse_dct(block):
     return data
 
 
-def get_mb(bitreader):
+def get_mb(bitreader, picture, width, offset):
     mbc = bitreader.read(1)
-    block = zip(zeros[0:256],zeros[0:256],zeros[0:256])
 
     if mbc == 0:
         y = zeros[0:256]
@@ -338,14 +379,12 @@ def get_mb(bitreader):
             g = 255 if g > 255 else g
             b = 0 if b < 0 else b
             b = 255 if b > 255 else b
-            block[MB_TO_GOB_MAP[i]] = r, g, b
-        #block = idct.ybr2rgb(y, cb, cr, 0)
+            # re-order the pixels
+            row = MB_ROW_MAP[i]
+            col = MB_COL_MAP[i]
+            picture[offset + row*width + col] = r, g, b
     else:
         print "mbc was not zero"
-    return block
-
-zeros = array.array('i', [0 for i in range(256)])
-
 
 
 def _first_half(data):
@@ -364,6 +403,7 @@ def _first_half(data):
     # if zerocount is 0, tmp = 0 else the 1 merged with additional bits
     tmp = 0 if zerocount == 0 else (1 << toread) | additional
     return [streamlen, tmp]
+
 
 def _second_half(data):
     # data has to be 15 bits wide
@@ -433,7 +473,6 @@ def get_block2(bitreader, has_coeff):
 
 
 def get_gob(bitreader, picture, slicenr, blocks):
-    block = []
     # the first gob has a special header
     if slicenr > 0:
         bitreader.align()
@@ -449,16 +488,8 @@ def get_gob(bitreader, picture, slicenr, blocks):
         _ = bitreader.read(5)
     for i in range(blocks):
         #print "b%i" % i
-        block.append(get_mb(bitreader))
-    # re-arrange the blocks into continous pixels
-    # TODO: gucken, ob ich das da oben in for i in range(blocks) reinbekomme
-    offset = slicenr*256*blocks
-    for row in range(16):
-        i = 0
-        offset2 = 16*blocks*row
-        for b in block:
-            picture[offset+offset2+i*16:offset+offset2+(i+1)*16] = b[row*16:(row+1)*16]
-            i += 1
+        get_mb(bitreader, picture, blocks*16, slicenr*256*blocks+16*i)
+
 
 def read_picture(bitreader):
     t = datetime.datetime.now()
@@ -478,18 +509,18 @@ def read_picture(bitreader):
     #print len(block)
     #print 'time', t2 - t, ',', 1. / (t2 - t).microseconds * 1000000, 'fps'
     # print the image
-    #show_image(picture, width, height)
+    show_image(picture, width, height)
     return (t2 - t).microseconds / 1000000.
 
 def _pp(name, value):
     #return
     print "%s\t\t%s\t%s" % (name, str(bin(value)), str(value))
 
-#import pygame
-#pygame.init()
-#W, H = 320, 240
-#screen = pygame.display.set_mode((W, H))
-#surface = pygame.Surface((W, H))
+import pygame
+pygame.init()
+W, H = 320, 240
+screen = pygame.display.set_mode((W, H))
+surface = pygame.Surface((W, H))
 
 
 def show_image(block, width, height):
