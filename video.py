@@ -80,7 +80,7 @@ clzlut = array.array('B', (8, 7, 6, 6, 5, 5, 5, 5, 4, 4, 4, 4, 4,
           0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0))
 
 # Map from pixels from four 8x8 blocks to one 16x16
-MB_TO_GOB_MAP = [0, 1, 2, 3, 4, 5, 6, 7, 16, 17, 18, 19, 20, 21, 22, 23, 32,
+MB_TO_GOB_MAP = array.array('B', [0, 1, 2, 3, 4, 5, 6, 7, 16, 17, 18, 19, 20, 21, 22, 23, 32,
         33, 34, 35, 36, 37, 38, 39, 48, 49, 50, 51, 52, 53, 54, 55, 64, 65, 66,
         67, 68, 69, 70, 71, 80, 81, 82, 83, 84, 85, 86, 87, 96, 97, 98, 99,
         100, 101, 102, 103, 112, 113, 114, 115, 116, 117, 118, 119, 8, 9, 10,
@@ -96,7 +96,7 @@ MB_TO_GOB_MAP = [0, 1, 2, 3, 4, 5, 6, 7, 16, 17, 18, 19, 20, 21, 22, 23, 32,
         155, 156, 157, 158, 159, 168, 169, 170, 171, 172, 173, 174, 175, 184,
         185, 186, 187, 188, 189, 190, 191, 200, 201, 202, 203, 204, 205, 206,
         207, 216, 217, 218, 219, 220, 221, 222, 223, 232, 233, 234, 235, 236,
-        237, 238, 239, 248, 249, 250, 251, 252, 253, 254, 255]
+        237, 238, 239, 248, 249, 250, 251, 252, 253, 254, 255])
 
 FIX_0_298631336 = 2446
 FIX_0_390180644 = 3196
@@ -432,43 +432,43 @@ def get_block2(bitreader, has_coeff):
 
 
 
-def get_gob(bitreader, blocks):
+def get_gob(bitreader, picture, slicenr, blocks):
     block = []
-    bitreader.align()
-    gobsc = bitreader.read(22)
-    if gobsc == 0b0000000000000000111111:
-        print "weeeee"
-        return False
-    elif (not (gobsc & 0b0000000000000000100000) or
-         (gobsc & 0b1111111111111111000000)):
-        print "Got wrong GOBSC, aborting.", bin(gobsc)
-        return False
-    #print 'GOBSC:', gobsc & 0b11111
-    _ = bitreader.read(5)
+    # the first gob has a special header
+    if slicenr > 0:
+        bitreader.align()
+        gobsc = bitreader.read(22)
+        if gobsc == 0b0000000000000000111111:
+            print "weeeee"
+            return False
+        elif (not (gobsc & 0b0000000000000000100000) or
+             (gobsc & 0b1111111111111111000000)):
+            print "Got wrong GOBSC, aborting.", bin(gobsc)
+            return False
+        #print 'GOBSC:', gobsc & 0b11111
+        _ = bitreader.read(5)
     for i in range(blocks):
         #print "b%i" % i
         block.append(get_mb(bitreader))
     # re-arrange the blocks into continous pixels
-    data = []
+    # TODO: gucken, ob ich das da oben in for i in range(blocks) reinbekomme
+    offset = slicenr*256*blocks
     for row in range(16):
+        i = 0
+        offset2 = 16*blocks*row
         for b in block:
-            data.extend(b[row*16:(row+1)*16])
-    return data 
+            picture[offset+offset2+i*16:offset+offset2+(i+1)*16] = b[row*16:(row+1)*16]
+            i += 1
 
 def read_picture(bitreader):
     t = datetime.datetime.now()
-    block = []
     width, height = get_pheader(bitreader)
     slices = height / 16
     blocks = width / 16
-    image = [0 for i in range(width*height)]
-    # this is already the first slice
-    for i in range(blocks):
-        block.extend(get_mb(bitreader))
-    # those are the remaining ones
-    for i in range(1, slices):
+    picture = [(0, 0, 0) for i in range(width*height)]
+    for i in range(0, slices):
         #print "Getting Slice", i, slices
-        block.extend(get_gob(bitreader, blocks))
+        get_gob(bitreader, picture, i, blocks)
     bitreader.align()
     eos = bitreader.read(22)
     assert(eos == 0b0000000000000000111111)
@@ -478,52 +478,29 @@ def read_picture(bitreader):
     #print len(block)
     #print 'time', t2 - t, ',', 1. / (t2 - t).microseconds * 1000000, 'fps'
     # print the image
-    show_image(block, width, height)
+    #show_image(picture, width, height)
     return (t2 - t).microseconds / 1000000.
 
 def _pp(name, value):
     #return
     print "%s\t\t%s\t%s" % (name, str(bin(value)), str(value))
 
-import pygame
-pygame.init()
-W, H = 320, 240
-screen = pygame.display.set_mode((W, H))
-surface = pygame.Surface((W, H))
-blocki_to_xy = []
-for sl in range(H / 16):
-    for bl in range(W / 16):
-        for j in range(4):
-            for y in range(8):
-                for x in range(8):
-                    if j == 0:
-                        blocki_to_xy.append((bl*16+x, sl*16+y))
-                    if j == 1:
-                        blocki_to_xy.append((bl*16+x+8, sl*16+y))
-                    if j == 2:
-                        blocki_to_xy.append((bl*16+x, sl*16+y+8))
-                    if j == 3:
-                        blocki_to_xy.append((bl*16+x+8, sl*16+y+8))
-                    i += 1
+#import pygame
+#pygame.init()
+#W, H = 320, 240
+#screen = pygame.display.set_mode((W, H))
+#surface = pygame.Surface((W, H))
 
 
 def show_image(block, width, height):
-    #a = [[0 for i in range(H)] for j in range(W)]
-    #a.reshape(height, width, 3)
     t = datetime.datetime.now()
-    i = 0
     s = ''.join([''.join([chr(r), chr(g), chr(b)]) for r, g, b in block])
-    #print s
-    ##sarray = pygame.surfarray.make_surface(a)
-    #for pixel in block:
-    #    surface.set_at(blocki_to_xy[i], pixel)
-    #    i += 1
     surface = pygame.image.fromstring(s, (width, height), 'RGB')
     screen.blit(surface, (0, 0))
     #pygame.display.update()
     pygame.display.flip()
     t2 = datetime.datetime.now()
-    print (t2-t).microseconds / 1000000.
+    print "Time to display image:", (t2-t).microseconds / 1000000.
 
 
 def main():
