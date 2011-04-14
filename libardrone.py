@@ -24,11 +24,87 @@ Docstring goes here.
 """
 
 
-import struct
 import socket
+import struct
+import sys
+import threading
 import time
 
+
 __author__ = "Bastian Venthur"
+
+
+class ARDrone(object):
+
+    def __init__(self):
+        self.seq_nr = 1
+        # worked with 0.1 see if it works w/ 0.2 (should work with < 0.25)
+        self.timer_t = 0.2
+        self.com_watchdog_timer = threading.Timer(self.timer_t, self.commwdg)
+        self.lock = threading.Lock()
+        self.speed = 0.5
+
+    def takeoff(self):
+        self.at(at_ftrim)
+        self.at(at_ref, True)
+
+    def land(self):
+        self.at(at_ref, False)
+
+    def hover(self):
+        self.at(at_pcmd, False, 0, 0, 0, 0)
+
+    def move_left(self):
+        self.at(at_pcmd, True, -self.speed, 0, 0, 0)
+
+    def move_right(self):
+        self.at(at_pcmd, True, self.speed, 0, 0, 0)
+
+    def move_up(self):
+        self.at(at_pcmd, True, 0, 0, self.speed, 0)
+
+    def move_down(self):
+        self.at(at_pcmd, True, 0, 0, -self.speed, 0)
+
+    def move_forward(self):
+        self.at(at_pcmd, True, 0, -self.speed, 0, 0)
+
+    def move_backward(self):
+        self.at(at_pcmd, True, 0, self.speed, 0, 0)
+
+    def turn_left(self):
+        self.at(at_pcmd, True, 0, 0, 0, -self.speed)
+
+    def turn_right(self):
+        self.at(at_pcmd, True, 0, 0, 0, self.speed)
+
+    def reset(self):
+        self.at(at_ref, False, True)
+        self.at(at_ref, False, False)
+
+    def trim(self):
+        self.at(at_ftrim)
+
+    def set_speed(self, speed):
+        self.speed = speed
+
+    def at(self, cmd, *args, **kwargs):
+        """Wrapper for the low level at commands.
+
+        This method takes care that the sequence number is increased after each
+        at command and the watchdog timer is started to make sure the drone
+        receives a command at least every second.
+        """
+        self.lock.acquire()
+        self.com_watchdog_timer.cancel()
+        cmd(self.seq_nr, *args, **kwargs)
+        self.seq_nr += 1
+        self.com_watchdog_timer = threading.Timer(self.timer_t, self.commwdg)
+        self.com_watchdog_timer.start()
+        self.lock.release()
+
+    def commwdg(self):
+        self.at(at_comwdg)
 
 ###############################################################################
 ### Preliminary high level commands
@@ -227,11 +303,10 @@ def f2i(f):
 
 def decode_packet(packet):
     """Decode a navdata packet."""
-    print
     offset = 0
     header, drone_state, seq_nr, vision_flag =  struct.unpack_from("IIII", packet, offset)
-    print "HEADER:"
-    print header, drone_state, seq_nr, vision_flag
+    #print "HEADER:"
+    #print header, drone_state, seq_nr, vision_flag
     offset += struct.calcsize("IIII")
     option = 1
     while 1:
@@ -244,10 +319,85 @@ def decode_packet(packet):
         for i in range(size-struct.calcsize("HH")):
             data.append(struct.unpack_from("c", packet, offset)[0])
             offset += struct.calcsize("c")
-        print "OPTION %i:" % option
+        #print "OPTION %i:" % option
         option += 1
-        print id, size, "".join(data)
+        #print id, size, "".join(data)
         # navdata_tag_t in navdata-common.h
         if id == 0:
-            print struct.unpack_from("IIfffIfffI", "".join(data))
+            data2 = struct.unpack_from("IIfffIfffI", "".join(data))
+            print "Control State: %s Battery: %s\nTheta (pitch): %s Phi (roll): %s Psi (yaw): %s\nAltitude: %s vx: %s vy: %s vz: %s Frame index: %s" % tuple([str(i) for i in data2])
+#      ctrl_state;             /*!< Flying state (landed, flying, hovering, etc.) defined in CTRL_STATES enum. */
+#      vbat_flying_percentage; /*!< battery voltage filtered (mV) */
+#
+#      theta;                  /*!< UAV's pitch in milli-degrees */
+#      phi;                    /*!< UAV's roll  in milli-degrees */
+#      psi;                    /*!< UAV's yaw   in milli-degrees */
+#
+#      altitude;               /*!< UAV's altitude in centimeters */
+#
+#      vx;                     /*!< UAV's estimated linear velocity */
+#      vy;                     /*!< UAV's estimated linear velocity */
+#      vz;                     /*!< UAV's estimated linear velocity */
+#
+#      num_frames;			  /*!< streamed frame index */ // Not used -> To integrate in video stage.
+
+
+if __name__ == "__main__":
+
+    import termios
+    import fcntl
+    import sys
+    import os
+    
+    fd = sys.stdin.fileno()
+
+    oldterm = termios.tcgetattr(fd)
+    newattr = termios.tcgetattr(fd)
+    newattr[3] = newattr[3] & ~termios.ICANON & ~termios.ECHO
+    termios.tcsetattr(fd, termios.TCSANOW, newattr)
+
+    oldflags = fcntl.fcntl(fd, fcntl.F_GETFL)
+    fcntl.fcntl(fd, fcntl.F_SETFL, oldflags | os.O_NONBLOCK)
+
+    drone = ARDrone()
+
+    try:
+        while 1:
+            try:
+                c = sys.stdin.read(1)
+                c = c.lower()
+                print "Got character", `c`
+                if c == 'a':
+                    drone.move_left()
+                if c == 'd':
+                    drone.move_right()
+                if c == 'w':
+                    drone.move_forward()
+                if c == 's':
+                    drone.move_backward()
+                if c == ' ':
+                    drone.land()
+                if c == '\n':
+                    drone.takeoff()
+                if c == 'q':
+                    drone.turn_left()
+                if c == 'e':
+                    drone.turn_right()
+                if c == '1':
+                    drone.move_up()
+                if c == '2':
+                    drone.hover()
+                if c == '3':
+                    drone.move_down()
+                if c == 't':
+                    drone.reset()
+                if c == 'x':
+                    drone.hover()
+                if c == 'y':
+                    drone.trim()
+            except IOError:
+                pass
+    finally:
+        termios.tcsetattr(fd, termios.TCSAFLUSH, oldterm)
+        fcntl.fcntl(fd, fcntl.F_SETFL, oldflags)
 
