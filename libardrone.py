@@ -42,7 +42,7 @@ class ARDrone(object):
         self.timer_t = 0.2
         self.com_watchdog_timer = threading.Timer(self.timer_t, self.commwdg)
         self.lock = threading.Lock()
-        self.speed = 0.5
+        self.speed = 0.2
 
     def takeoff(self):
         self.at(at_ftrim)
