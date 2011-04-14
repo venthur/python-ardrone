@@ -6,10 +6,8 @@ import cProfile
 import datetime
 import struct
 import sys
-import idct
 import psyco
 psyco.full()
-
 
 # from zig-zag back to normal
 ZIG_ZAG_POSITIONS = array.array('B', ( 0,  1,  8, 16,  9,  2, 3, 10,
@@ -347,23 +345,19 @@ def get_mb(bitreader, picture, width, offset):
     mbc = bitreader.read(1)
 
     if mbc == 0:
-        y = zeros[0:256]
         mbdesc = bitreader.read(8)
         assert(mbdesc >> 7 & 1)
         if mbdesc >> 6 & 1:
             mbdiff = bitreader.read(2)
-        #y[0:63] = get_block2(bitreader, mbdesc & 1)
-        #y[64:127] = get_block2(bitreader, mbdesc >> 1 & 1)
-        #y[128:191] = get_block2(bitreader, mbdesc >> 2 & 1)
-        #y[192:255] = get_block2(bitreader, mbdesc >> 3 & 1)
 
-        y = get_block2(bitreader, mbdesc & 1)
-        y.extend(get_block2(bitreader, mbdesc >> 1 & 1))
-        y.extend(get_block2(bitreader, mbdesc >> 2 & 1))
-        y.extend(get_block2(bitreader, mbdesc >> 3 & 1))
+        y = get_block(bitreader, mbdesc & 1)
+        y.extend(get_block(bitreader, mbdesc >> 1 & 1))
+        y.extend(get_block(bitreader, mbdesc >> 2 & 1))
+        y.extend(get_block(bitreader, mbdesc >> 3 & 1))
 
-        cb = get_block2(bitreader, mbdesc >> 4 & 1)
-        cr = get_block2(bitreader, mbdesc >> 5 & 1)
+        cb = get_block(bitreader, mbdesc >> 4 & 1)
+        cr = get_block(bitreader, mbdesc >> 5 & 1)
+
         # ycbcr to rgb
         for i in range(256):
             j = scalemap[i]
@@ -382,7 +376,7 @@ def get_mb(bitreader, picture, width, offset):
             # re-order the pixels
             row = MB_ROW_MAP[i]
             col = MB_COL_MAP[i]
-            picture[offset + row*width + col] = r, g, b
+            picture[offset + row*width + col] = ''.join((chr(r), chr(g), chr(b)))
     else:
         print "mbc was not zero"
 
@@ -435,13 +429,12 @@ TRIES = 16
 MASK = 2**(TRIES*32)-1
 SHIFT = 32*(TRIES-1)
 
-def get_block2(bitreader, has_coeff):
+def get_block(bitreader, has_coeff):
     # read the first 10 bits in a 16 bit datum
     out_list = zeros[0:64]
     out_list[0] = int(bitreader.read(10)) * iquant_tab[0]
     if not has_coeff:
-        #return inverse_dct(out_list)
-        return idct.idct(out_list, [])
+        return inverse_dct(out_list)
     i = 1
     while 1:
         _ = bitreader.read(32*TRIES, False)
@@ -460,19 +453,17 @@ def get_block2(bitreader, has_coeff):
             streamlen += l
             if eob:
                 bitreader.read(streamlen)
-                #return inverse_dct(out_list)
-                return idct.idct(out_list, [])
+                return inverse_dct(out_list)
             j = ZIG_ZAG_POSITIONS[i]
             out_list[j] = tmp*iquant_tab[j]
             i += 1
         #######################################################################
         bitreader.read(streamlen)
-    #return inverse_dct(out_list)
-    return idct.idct(out_list, [])
+    return inverse_dct(out_list)
 
 
 
-def get_gob(bitreader, picture, slicenr, blocks):
+def get_gob(bitreader, picture, slicenr, width):
     # the first gob has a special header
     if slicenr > 0:
         bitreader.align()
@@ -484,11 +475,10 @@ def get_gob(bitreader, picture, slicenr, blocks):
              (gobsc & 0b1111111111111111000000)):
             print "Got wrong GOBSC, aborting.", bin(gobsc)
             return False
-        #print 'GOBSC:', gobsc & 0b11111
         _ = bitreader.read(5)
-    for i in range(blocks):
-        #print "b%i" % i
-        get_mb(bitreader, picture, blocks*16, slicenr*256*blocks+16*i)
+    offset = slicenr*16*width
+    for i in range(width / 16):
+        get_mb(bitreader, picture, width, offset+16*i)
 
 
 def read_picture(bitreader):
@@ -496,25 +486,15 @@ def read_picture(bitreader):
     width, height = get_pheader(bitreader)
     slices = height / 16
     blocks = width / 16
-    picture = [(0, 0, 0) for i in range(width*height)]
+    image = [0 for i in range(width*height)]
     for i in range(0, slices):
-        #print "Getting Slice", i, slices
-        get_gob(bitreader, picture, i, blocks)
+        get_gob(bitreader, image, i, width)
     bitreader.align()
     eos = bitreader.read(22)
     assert(eos == 0b0000000000000000111111)
     t2 = datetime.datetime.now()
-    #print "\nEND OF PICTURE\n"
-    #print slices, blocks
-    #print len(block)
-    #print 'time', t2 - t, ',', 1. / (t2 - t).microseconds * 1000000, 'fps'
-    # print the image
-    show_image(picture, width, height)
-    return (t2 - t).microseconds / 1000000.
+    return width, height, ''.join(image), (t2 - t).microseconds / 1000000.
 
-def _pp(name, value):
-    #return
-    print "%s\t\t%s\t%s" % (name, str(bin(value)), str(value))
 
 import pygame
 pygame.init()
@@ -523,21 +503,15 @@ screen = pygame.display.set_mode((W, H))
 surface = pygame.Surface((W, H))
 
 
-def show_image(block, width, height):
-    t = datetime.datetime.now()
-    s = ''.join([''.join([chr(r), chr(g), chr(b)]) for r, g, b in block])
-    surface = pygame.image.fromstring(s, (width, height), 'RGB')
+def show_image(image, width, height):
+    surface = pygame.image.fromstring(image, (width, height), 'RGB')
     screen.blit(surface, (0, 0))
-    #pygame.display.update()
     pygame.display.flip()
-    t2 = datetime.datetime.now()
-    print "Time to display image:", (t2-t).microseconds / 1000000.
 
 
 def main():
     fh = open('framewireshark.raw', 'r')
     #fh = open('videoframe.raw', 'r')
-    #fh = open('video.raw', 'r')
     data = fh.read()
     fh.close()
     runs = 20
@@ -545,7 +519,9 @@ def main():
     for i in range(runs):
         print '.',
         br = BitReader(data)
-        t += read_picture(br)
+        width, height, image, ti = read_picture(br)
+        show_image(image, width, height)
+        t += ti
     print
     print 'avg time:\t', t / runs, 'sec'
     print 'avg fps:\t', 1 / (t / runs), 'fps'

@@ -13,37 +13,58 @@ import video
 class ARDroneVideoThread(threading.Thread):
 
     def run(self):
-        print 'preparing server...'
+        #print 'preparing video server...'
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         sock.setblocking(0)
         sock.bind(('', 5555))
         self.stopping = False
-        # will the drone send one frame per udp package?
 
-        print 'sending wakeup'
-        sock.sendto("\x01\x00\x00\x00", ('192.168.1.1', 5555))
+        #print 'sending video wakeup'
+        #sock.sendto("\x01\x00\x00\x00", ('192.168.1.1', 5555))
+
+        print 'preparing navdata server...'
+        sock_nav = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        sock_nav.setblocking(0)
+        sock_nav.bind(('', 5554))
+
+        print 'sending navdata wakeup'
+        sock_nav.sendto("\x01\x00\x00\x00", ('192.168.1.1', 5554))
+        #libardrone.navdata_demo()
+        self.drone.at(libardrone.at_config, "general:navdata_demo", "TRUE")
+        time.sleep(0.04)
+        libardrone.at("AT_CTRL", 0)
 
         print 'waiting for incoming data'
-        j = 0
         while not self.stopping:
-            j += 1
-            inputready, outputready, exceptready = select.select([sock, sys.stdin], [], [])
+            inputready, outputready, exceptready = select.select([sock, sock_nav, sys.stdin], [], [])
             for i in inputready:
                 if i == sock:
-                    print 'reading socket...',
+                    print 'reading video socket...',
                     t = datetime.datetime.now()
+                    j = 0
                     while 1:
+                        j += 1
                         try:
-                            j += 1
                             data, address = sock.recvfrom(65535)    # max udp packet size
                         except:
                             print "dropped", j-1, "frames"
-                            j = 0
                             break
                     br = video.BitReader(data)
-                    t_decode = video.read_picture(br)
+                    width, height, image, t_decode = video.read_picture(br)
+                    video.show_image(image, width, height)
                     t2 = datetime.datetime.now()
                     print 'ok.', (t2 - t).microseconds / 1000000., 'sec', t_decode
+                elif i == sock_nav:
+                    print 'reading navdata socket...',
+                    j = 0
+                    while 1:
+                        j += 1
+                        try:
+                            data, address = sock_nav.recvfrom(65535)    # max udp packet size
+                        except:
+                            print "dropped", j-1, "frames"
+                            break
+                    libardrone.decode_packet(data)
                 elif i == sys.stdin:
                     sys.stdin.readline()
                     print "stopping the loop"
@@ -56,10 +77,11 @@ class ARDroneVideoThread(threading.Thread):
         self.stopping = True
 
 def main():
+    drone = libardrone.ARDrone()
     vthread = ARDroneVideoThread()
+    # FIXME: kill meeeeeeeeeee!
+    vthread.drone = drone
     vthread.start()
-    #time.sleep(60)
-    #vthread.stop()
     vthread.join()
 
 if __name__ == '__main__':
