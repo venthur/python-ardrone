@@ -20,7 +20,9 @@
 
 
 """
-Docstring goes here.
+Python library for the AR.Drone.
+
+This module was tested with Python 2.6.6 and AR.Drone vanilla firmware 1.5.1.
 """
 
 
@@ -38,8 +40,9 @@ import video
 __author__ = "Bastian Venthur"
 
 
-ARDRONE_VIDEO_PORT = 5555
 ARDRONE_NAVDATA_PORT = 5554
+ARDRONE_VIDEO_PORT = 5555
+ARDRONE_COMMAND_PORT = 5556
 
 
 class ARDrone(object):
@@ -284,7 +287,7 @@ def at(command, seq, params=[]):
     msg = "AT*%s=%i%s\r" % (command, seq, param_str)
     print msg
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    sock.sendto(msg, ("192.168.1.1", 5556))
+    sock.sendto(msg, ("192.168.1.1", ARDRONE_COMMAND_PORT))
 
 def f2i(f):
     """Interpret IEEE-754 floating-point value as signed integer.
