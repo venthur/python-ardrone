@@ -12,6 +12,11 @@ import video
 
 class ARDroneVideoThread(threading.Thread):
 
+    def __init__(self, drone):
+        threading.Thread.__init__(self)
+        self.drone = drone
+
+
     def run(self):
         #print 'preparing video server...'
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -20,7 +25,7 @@ class ARDroneVideoThread(threading.Thread):
         self.stopping = False
 
         #print 'sending video wakeup'
-        #sock.sendto("\x01\x00\x00\x00", ('192.168.1.1', 5555))
+        sock.sendto("\x01\x00\x00\x00", ('192.168.1.1', 5555))
 
         print 'preparing navdata server...'
         sock_nav = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -64,13 +69,16 @@ class ARDroneVideoThread(threading.Thread):
                         except:
                             print "dropped", j-1, "frames"
                             break
-                    libardrone.decode_packet(data)
+                    navdata = libardrone.decode_navdata(data)
+                    print navdata[0]
                 elif i == sys.stdin:
                     sys.stdin.readline()
                     print "stopping the loop"
                     self.stopping = True
         print 'left receiving loop'
         sock.close()
+        sock_nav.close()
+        self.drone.halt()
 
     def stop(self):
         print "signaling thread to stop"
@@ -78,10 +86,11 @@ class ARDroneVideoThread(threading.Thread):
 
 def main():
     drone = libardrone.ARDrone()
-    vthread = ARDroneVideoThread()
+    vthread = ARDroneVideoThread(drone)
     # FIXME: kill meeeeeeeeeee!
     vthread.drone = drone
     vthread.start()
+    drone.halt()
     vthread.join()
 
 if __name__ == '__main__':

@@ -7,7 +7,8 @@ import datetime
 import struct
 import sys
 import psyco
-psyco.full()
+#psyco.full()
+
 
 # from zig-zag back to normal
 ZIG_ZAG_POSITIONS = array.array('B', ( 0,  1,  8, 16,  9,  2, 3, 10,
@@ -495,19 +496,25 @@ def read_picture(bitreader):
     t2 = datetime.datetime.now()
     return width, height, ''.join(image), (t2 - t).microseconds / 1000000.
 
+psyco.bind(BitReader)
+psyco.bind(get_block)
+psyco.bind(get_gob)
+psyco.bind(get_mb)
+psyco.bind(inverse_dct)
+psyco.bind(read_picture)
 
-import pygame
-pygame.init()
-W, H = 320, 240
-screen = pygame.display.set_mode((W, H))
-surface = pygame.Surface((W, H))
-
-
-def show_image(image, width, height):
-    surface = pygame.image.fromstring(image, (width, height), 'RGB')
-    screen.blit(surface, (0, 0))
-    pygame.display.flip()
-
+#import pygame
+#pygame.init()
+#W, H = 320, 240
+#screen = pygame.display.set_mode((W, H))
+#surface = pygame.Surface((W, H))
+#
+#
+#def show_image(image, width, height):
+#    surface = pygame.image.fromstring(image, (width, height), 'RGB')
+#    screen.blit(surface, (0, 0))
+#    pygame.display.flip()
+#
 
 def main():
     fh = open('framewireshark.raw', 'r')

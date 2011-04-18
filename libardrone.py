@@ -30,22 +30,34 @@ import sys
 import threading
 import time
 
+import network
+import video
+
 
 __author__ = "Bastian Venthur"
+
+
+ARDRONE_VIDEO_PORT = 5555
+ARDRONE_NAVDATA_PORT = 5554
 
 
 class ARDrone(object):
 
     def __init__(self):
         self.seq_nr = 1
-        # worked with 0.1 see if it works w/ 0.2 (should work with < 0.25)
         self.timer_t = 0.2
         self.com_watchdog_timer = threading.Timer(self.timer_t, self.commwdg)
         self.lock = threading.Lock()
         self.speed = 0.2
+        self.at(at_config, "general:navdata_demo", "TRUE")
+        self.network_thread = network.ARDroneNetworkThread(self)
+        self.network_thread.start()
+        self.image = ""
+        self.time = 0
 
     def takeoff(self):
         self.at(at_ftrim)
+        self.at(at_config, "control:altitude_max", "20000")
         self.at(at_ref, True)
 
     def land(self):
@@ -106,51 +118,24 @@ class ARDrone(object):
     def commwdg(self):
         self.at(at_comwdg)
 
-###############################################################################
-### Preliminary high level commands
-###############################################################################
+    def halt(self):
+        self.lock.acquire()
+        self.com_watchdog_timer.cancel()
+        self.network_thread.stop()
+        self.network_thread.join()
+        self.lock.release()
 
-def trim():
-    at_ftrim(1)
+    def new_video_packet(self, data):
+        br = video.BitReader(data)
+        #width, height, image, time = video.read_picture(br)
+        self.image = image
+        self.time = time
+        pass
 
-def takeoff():
-#    at_comwdg(1)
-#    time.sleep(0.05)
-    at_ftrim(1)
-    time.sleep(0.1)
-    at_config(1, "control:altitude_max", "500")
-    time.sleep(0.1)
-    at_ref(1, True)
+    def new_navdata_packet(self, data):
+        navdata = decode_navdata(data)
+        pass
 
-def land():
-    at_pcmd(1, True, 0, 0, -0.1, 0)
-    time.sleep(2)
-    at_ref(1, False)
-
-def hover():
-    at_pcmd(1, False, 0, 0, 0, 0)
-
-def turn_left():
-    at_pcmd(1, True, 0, 0, 0, -0.5)
-
-def turn_right():
-    at_pcmd(1, True, 0, 0, 0, 0.5)
-
-def navdata_demo():
-    at_config(1, "general:navdata_demo", "TRUE")
-
-def XXX():
-    """Emergency halt -- will stop the engines no matter what!"""
-    at_ref(1, False, False)
-    at_ref(1, False, True)
-    at_ref(1, False, False)
-
-def start_video_stream():
-    """Start enable the video stream."""
-    # send something to the drones video port to trigger sending video data
-    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    sock.sendto("\x01\x00\x00\x00", ('192.168.1.1', 5555))
-    sock.close()
 
 ###############################################################################
 ### Low level AT Commands
@@ -300,46 +285,33 @@ def f2i(f):
 ###############################################################################
 ### navdata
 ###############################################################################
-
-def decode_packet(packet):
+def decode_navdata(packet):
     """Decode a navdata packet."""
     offset = 0
-    header, drone_state, seq_nr, vision_flag =  struct.unpack_from("IIII", packet, offset)
-    #print "HEADER:"
-    #print header, drone_state, seq_nr, vision_flag
+    _ =  struct.unpack_from("IIII", packet, offset)
+    data = dict(zip(['header', 'drone_state', 'seq_nr', 'vision_flag'], _))
     offset += struct.calcsize("IIII")
-    option = 1
     while 1:
         try:
-            id, size =  struct.unpack_from("HH", packet, offset)
+            id_nr, size =  struct.unpack_from("HH", packet, offset)
             offset += struct.calcsize("HH")
         except:
             break
-        data = []
+        values = []
         for i in range(size-struct.calcsize("HH")):
-            data.append(struct.unpack_from("c", packet, offset)[0])
+            values.append(struct.unpack_from("c", packet, offset)[0])
             offset += struct.calcsize("c")
-        #print "OPTION %i:" % option
-        option += 1
-        #print id, size, "".join(data)
         # navdata_tag_t in navdata-common.h
-        if id == 0:
-            data2 = struct.unpack_from("IIfffIfffI", "".join(data))
-            print "Control State: %s Battery: %s\nTheta (pitch): %s Phi (roll): %s Psi (yaw): %s\nAltitude: %s vx: %s vy: %s vz: %s Frame index: %s" % tuple([str(i) for i in data2])
-#      ctrl_state;             /*!< Flying state (landed, flying, hovering, etc.) defined in CTRL_STATES enum. */
-#      vbat_flying_percentage; /*!< battery voltage filtered (mV) */
-#
-#      theta;                  /*!< UAV's pitch in milli-degrees */
-#      phi;                    /*!< UAV's roll  in milli-degrees */
-#      psi;                    /*!< UAV's yaw   in milli-degrees */
-#
-#      altitude;               /*!< UAV's altitude in centimeters */
-#
-#      vx;                     /*!< UAV's estimated linear velocity */
-#      vy;                     /*!< UAV's estimated linear velocity */
-#      vz;                     /*!< UAV's estimated linear velocity */
-#
-#      num_frames;			  /*!< streamed frame index */ // Not used -> To integrate in video stage.
+        if id_nr == 0:
+            values = struct.unpack_from("IIfffIfffI", "".join(values))
+            values = dict(zip(['ctrl_state', 'battery', 'theta', 'phi', 'psi', 'altitude', 'vx', 'vy', 'vz', 'num_frames'], values))
+            # convert the millidegrees into degrees and round to int, as they
+            # are not so precise anyways
+            for i in 'theta', 'phi', 'psi':
+                values[i] = int(values[i] / 1000)
+                #values[i] /= 1000
+        data[id_nr] = values
+    return data
 
 
 if __name__ == "__main__":
@@ -400,4 +372,5 @@ if __name__ == "__main__":
     finally:
         termios.tcsetattr(fd, termios.TCSAFLUSH, oldterm)
         fcntl.fcntl(fd, fcntl.F_SETFL, oldflags)
+        drone.halt()
 
