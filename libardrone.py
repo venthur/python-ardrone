@@ -29,8 +29,9 @@ import struct
 import sys
 import threading
 import time
+import multiprocessing
 
-import network
+import arnetwork
 import video
 
 
@@ -50,8 +51,14 @@ class ARDrone(object):
         self.lock = threading.Lock()
         self.speed = 0.2
         self.at(at_config, "general:navdata_demo", "TRUE")
-        self.network_thread = network.ARDroneNetworkThread(self)
-        self.network_thread.start()
+        self.video_pipe, video_pipe_other = multiprocessing.Pipe()
+        self.nav_pipe, nav_pipe_other = multiprocessing.Pipe()
+        #self.network_thread = arnetwork.ARDroneNetworkThread(self)
+        #self.network_thread.start()
+        self.network_process = arnetwork.ARDroneNetworkProcess(nav_pipe_other, video_pipe_other)
+        self.network_process.start()
+        self.ipc_thread = arnetwork.IPCThread(self)
+        self.ipc_thread.start()
         self.image = ""
         self.time = 0
 
@@ -121,13 +128,18 @@ class ARDrone(object):
     def halt(self):
         self.lock.acquire()
         self.com_watchdog_timer.cancel()
-        self.network_thread.stop()
-        self.network_thread.join()
+        #self.network_thread.stop()
+        #self.network_thread.join()
+        self.ipc_thread.stop()
+        self.ipc_thread.join()
+        self.network_process.stop()
+        self.network_process.terminate()
+        self.network_process.join()
         self.lock.release()
 
     def new_video_packet(self, data):
         br = video.BitReader(data)
-        #width, height, image, time = video.read_picture(br)
+        width, height, image, time = video.read_picture(br)
         self.image = image
         self.time = time
         pass

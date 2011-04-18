@@ -75,7 +75,7 @@ def main():
         except:
             pass
         pygame.display.flip()
-        clock.tick()
+        clock.tick(50)
         pygame.display.set_caption("FPS: %.2f" % clock.get_fps())
 
     print "Shutting down...",
