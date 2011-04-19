@@ -74,11 +74,11 @@ class ARDroneNetworkThread(threading.Thread):
 
 class ARDroneNetworkProcess(multiprocessing.Process):
 
-    def __init__(self, nav_pipe, video_pipe):
+    def __init__(self, nav_pipe, video_pipe, com_pipe):
         multiprocessing.Process.__init__(self)
         self.nav_pipe = nav_pipe
         self.video_pipe = video_pipe
-        self.stopping = False
+        self.com_pipe = com_pipe
 
     def run(self):
         video_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -91,14 +91,12 @@ class ARDroneNetworkProcess(multiprocessing.Process):
         nav_socket.bind(('', libardrone.ARDRONE_NAVDATA_PORT))
         nav_socket.sendto("\x01\x00\x00\x00", ('192.168.1.1', libardrone.ARDRONE_NAVDATA_PORT))
 
-        f = 0
-        while not self.stopping:
-            inputready, outputready, exceptready = select.select([nav_socket, video_socket], [], [])
+        stopping = False
+        while not stopping:
+            inputready, outputready, exceptready = select.select([nav_socket, video_socket, self.com_pipe], [], [])
             for i in inputready:
                 if i == video_socket:
-                    ts = datetime.datetime.now()
                     while 1:
-                        print 's',
                         try:
                             data, address = video_socket.recvfrom(65535)
                         except:
@@ -110,9 +108,6 @@ class ARDroneNetworkProcess(multiprocessing.Process):
                     except e:
                         print "error while sending in video pipe."
                         print e
-                    print
-                    print 'd>',f,  datetime.datetime.now() - ts
-                    f += 1
                 elif i == nav_socket:
                     while 1:
                         try:
@@ -121,12 +116,12 @@ class ARDroneNetworkProcess(multiprocessing.Process):
                             break
                     navdata = libardrone.decode_navdata(data)
                     self.nav_pipe.send(navdata)
+                elif i == self.com_pipe:
+                    _ = self.com_pipe.recv()
+                    stopping = True
+                    break
         video_socket.close()
         nav_socket.close()
-
-    def stop(self):
-        self.stopping = True
-
 
 class IPCThread(threading.Thread):
 
@@ -136,7 +131,6 @@ class IPCThread(threading.Thread):
         self.stopping = False
 
     def run(self):
-        f = 0
         while not self.stopping:
             inputready, outputready, exceptready = select.select([self.drone.video_pipe, self.drone.nav_pipe], [], [], 1)
             for i in inputready:
@@ -144,11 +138,10 @@ class IPCThread(threading.Thread):
                     while self.drone.video_pipe.poll():
                         image = self.drone.video_pipe.recv()
                     self.drone.image = image
-                    print 't<',f, datetime.datetime.now()
-                    f += 1
                 elif i == self.drone.nav_pipe:
                     while self.drone.nav_pipe.poll():
-                        _ = self.drone.nav_pipe.recv()
+                        navdata = self.drone.nav_pipe.recv()
+                    self.drone.navdata = navdata
 
     def stop(self):
         self.stopping = True

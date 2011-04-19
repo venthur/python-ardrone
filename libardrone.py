@@ -54,15 +54,19 @@ class ARDrone(object):
         self.lock = threading.Lock()
         self.speed = 0.2
         self.at(at_config, "general:navdata_demo", "TRUE")
-        self.video_pipe, video_pipe_other = multiprocessing.Pipe()
-        self.nav_pipe, nav_pipe_other = multiprocessing.Pipe()
+        # network via threads
         #self.network_thread = arnetwork.ARDroneNetworkThread(self)
         #self.network_thread.start()
-        self.network_process = arnetwork.ARDroneNetworkProcess(nav_pipe_other, video_pipe_other)
+        # network via process
+        self.video_pipe, video_pipe_other = multiprocessing.Pipe()
+        self.nav_pipe, nav_pipe_other = multiprocessing.Pipe()
+        self.com_pipe, com_pipe_other = multiprocessing.Pipe()
+        self.network_process = arnetwork.ARDroneNetworkProcess(nav_pipe_other, video_pipe_other, com_pipe_other)
         self.network_process.start()
         self.ipc_thread = arnetwork.IPCThread(self)
         self.ipc_thread.start()
         self.image = ""
+        self.navdata = dict()
         self.time = 0
 
     def takeoff(self):
@@ -131,18 +135,20 @@ class ARDrone(object):
     def halt(self):
         self.lock.acquire()
         self.com_watchdog_timer.cancel()
+        # networking w/ threads
         #self.network_thread.stop()
         #self.network_thread.join()
-        self.ipc_thread.stop()
-        self.ipc_thread.join()
-        self.network_process.stop()
+        # networking w/ processes
+        self.com_pipe.send('die!')
         self.network_process.terminate()
         self.network_process.join()
+        self.ipc_thread.stop()
+        self.ipc_thread.join()
         self.lock.release()
 
     def new_video_packet(self, data):
-        br = video.BitReader(data)
-        width, height, image, time = video.read_picture(br)
+        br = arvideo.BitReader(data)
+        width, height, image, time = arvideo.read_picture(br)
         self.image = image
         self.time = time
         pass
@@ -304,7 +310,41 @@ def decode_navdata(packet):
     """Decode a navdata packet."""
     offset = 0
     _ =  struct.unpack_from("IIII", packet, offset)
-    data = dict(zip(['header', 'drone_state', 'seq_nr', 'vision_flag'], _))
+    drone_state = dict()
+    drone_state['fly_mask']             = _[1]       & 1 # FLY MASK : (0) ardrone is landed, (1) ardrone is flying
+    drone_state['video_mask']           = _[1] >>  1 & 1 # VIDEO MASK : (0) video disable, (1) video enable
+    drone_state['vision_mask']          = _[1] >>  2 & 1 # VISION MASK : (0) vision disable, (1) vision enable */
+    drone_state['control_mask']         = _[1] >>  3 & 1 # CONTROL ALGO (0) euler angles control, (1) angular speed control */
+    drone_state['altitude_mask']        = _[1] >>  4 & 1 # ALTITUDE CONTROL ALGO : (0) altitude control inactive (1) altitude control active */
+    drone_state['user_feedback_start']  = _[1] >>  5 & 1 # USER feedback : Start button state */
+    drone_state['command_mask']         = _[1] >>  6 & 1 # Control command ACK : (0) None, (1) one received */
+    drone_state['fw_file_mask']         = _[1] >>  7 & 1 # Firmware file is good (1) */
+    drone_state['fw_ver_mask']          = _[1] >>  8 & 1 # Firmware update is newer (1) */
+    drone_state['fw_upd_mask']          = _[1] >>  9 & 1 # Firmware update is ongoing (1) */
+    drone_state['navdata_demo_mask']    = _[1] >> 10 & 1 # Navdata demo : (0) All navdata, (1) only navdata demo */
+    drone_state['navdata_bootstrap']    = _[1] >> 11 & 1 # Navdata bootstrap : (0) options sent in all or demo mode, (1) no navdata options sent */
+    drone_state['motors_mask']          = _[1] >> 12 & 1 # Motor status : (0) Ok, (1) Motors problem */
+    drone_state['com_lost_mask']        = _[1] >> 13 & 1 # Communication lost : (1) com problem, (0) Com is ok */
+    drone_state['vbat_low']             = _[1] >> 15 & 1 # VBat low : (1) too low, (0) Ok */
+    drone_state['user_el']              = _[1] >> 16 & 1 # User Emergency Landing : (1) User EL is ON, (0) User EL is OFF*/
+    drone_state['timer_elapsed']        = _[1] >> 17 & 1 # Timer elapsed : (1) elapsed, (0) not elapsed */
+    drone_state['angles_out_of_range']  = _[1] >> 19 & 1 # Angles : (0) Ok, (1) out of range */
+    drone_state['ultrasound_mask']      = _[1] >> 21 & 1 # Ultrasonic sensor : (0) Ok, (1) deaf */
+    drone_state['cutout_mask']          = _[1] >> 22 & 1 # Cutout system detection : (0) Not detected, (1) detected */
+    drone_state['pic_version_mask']     = _[1] >> 23 & 1 # PIC Version number OK : (0) a bad version number, (1) version number is OK */
+    drone_state['atcodec_thread_on']    = _[1] >> 24 & 1 # ATCodec thread ON : (0) thread OFF (1) thread ON */
+    drone_state['navdata_thread_on']    = _[1] >> 25 & 1 # Navdata thread ON : (0) thread OFF (1) thread ON */
+    drone_state['video_thread_on']      = _[1] >> 26 & 1 # Video thread ON : (0) thread OFF (1) thread ON */
+    drone_state['acq_thread_on']        = _[1] >> 27 & 1 # Acquisition thread ON : (0) thread OFF (1) thread ON */
+    drone_state['ctrl_watchdog_mask']   = _[1] >> 28 & 1 # CTRL watchdog : (1) delay in control execution (> 5ms), (0) control is well scheduled */
+    drone_state['adc_watchdog_mask']    = _[1] >> 29 & 1 # ADC Watchdog : (1) delay in uart2 dsr (> 5ms), (0) uart2 is good */
+    drone_state['com_watchdog_mask']    = _[1] >> 30 & 1 # Communication Watchdog : (1) com problem, (0) Com is ok */
+    drone_state['emergency_mask']       = _[1] >> 31 & 1 # Emergency landing : (0) no emergency, (1) emergency */
+    data = dict()
+    data['drone_state'] = drone_state
+    data['header'] = _[0]
+    data['seq_nr'] = _[2]
+    data['vision_flag'] = _[3]
     offset += struct.calcsize("IIII")
     while 1:
         try:
