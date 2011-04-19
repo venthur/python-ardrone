@@ -34,7 +34,7 @@ import time
 import multiprocessing
 
 import arnetwork
-import video
+import arvideo
 
 
 __author__ = "Bastian Venthur"

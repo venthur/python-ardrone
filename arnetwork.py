@@ -27,6 +27,7 @@ import multiprocessing
 import libardrone
 import arvideo
 
+import datetime
 
 class ARDroneNetworkThread(threading.Thread):
 
@@ -56,14 +57,14 @@ class ARDroneNetworkThread(threading.Thread):
                             data, address = video_socket.recvfrom(65535)
                         except:
                             break
-                        self.drone.new_video_packet(data)
+                    self.drone.new_video_packet(data)
                 elif i == nav_socket:
                     while 1:
                         try:
                             data, address = nav_socket.recvfrom(65535)
                         except:
                             break
-                        self.drone.new_navdata_packet(data)
+                    self.drone.new_navdata_packet(data)
         video_socket.close()
         nav_socket.close()
 
@@ -90,30 +91,36 @@ class ARDroneNetworkProcess(multiprocessing.Process):
         nav_socket.bind(('', libardrone.ARDRONE_NAVDATA_PORT))
         nav_socket.sendto("\x01\x00\x00\x00", ('192.168.1.1', libardrone.ARDRONE_NAVDATA_PORT))
 
+        f = 0
         while not self.stopping:
             inputready, outputready, exceptready = select.select([nav_socket, video_socket], [], [])
             for i in inputready:
                 if i == video_socket:
+                    ts = datetime.datetime.now()
                     while 1:
+                        print 's',
                         try:
                             data, address = video_socket.recvfrom(65535)
                         except:
                             break
-                        br = video.BitReader(data)
-                        w, h, image, t = arvideo.read_picture(br)
-                        try:
-                            self.video_pipe.send(image)
-                        except e:
-                            print "error while sending in video pipe."
-                            print e
+                    br = arvideo.BitReader(data)
+                    w, h, image, t = arvideo.read_picture(br)
+                    try:
+                        self.video_pipe.send(image)
+                    except e:
+                        print "error while sending in video pipe."
+                        print e
+                    print
+                    print 'd>',f,  datetime.datetime.now() - ts
+                    f += 1
                 elif i == nav_socket:
                     while 1:
                         try:
                             data, address = nav_socket.recvfrom(65535)
                         except:
                             break
-                        navdata = libardrone.decode_navdata(data)
-                        self.nav_pipe.send(navdata)
+                    navdata = libardrone.decode_navdata(data)
+                    self.nav_pipe.send(navdata)
         video_socket.close()
         nav_socket.close()
 
@@ -129,6 +136,7 @@ class IPCThread(threading.Thread):
         self.stopping = False
 
     def run(self):
+        f = 0
         while not self.stopping:
             inputready, outputready, exceptready = select.select([self.drone.video_pipe, self.drone.nav_pipe], [], [], 1)
             for i in inputready:
@@ -136,6 +144,8 @@ class IPCThread(threading.Thread):
                     while self.drone.video_pipe.poll():
                         image = self.drone.video_pipe.recv()
                     self.drone.image = image
+                    print 't<',f, datetime.datetime.now()
+                    f += 1
                 elif i == self.drone.nav_pipe:
                     while self.drone.nav_pipe.poll():
                         _ = self.drone.nav_pipe.recv()
