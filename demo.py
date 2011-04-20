@@ -39,6 +39,8 @@ def main():
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False 
+            elif event.type == pygame.KEYUP:
+                drone.hover()
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
                     drone.reset()
