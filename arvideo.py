@@ -26,8 +26,11 @@ import cProfile
 import datetime
 import struct
 import sys
-import psyco
-#psyco.full()
+
+try:
+    import psyco
+except ImportError:
+    print "Please install psyco for better video decoding performance."
 
 
 # from zig-zag back to normal
@@ -516,25 +519,17 @@ def read_picture(bitreader):
     t2 = datetime.datetime.now()
     return width, height, ''.join(image), (t2 - t).microseconds / 1000000.
 
-psyco.bind(BitReader)
-psyco.bind(get_block)
-psyco.bind(get_gob)
-psyco.bind(get_mb)
-psyco.bind(inverse_dct)
-psyco.bind(read_picture)
 
-#import pygame
-#pygame.init()
-#W, H = 320, 240
-#screen = pygame.display.set_mode((W, H))
-#surface = pygame.Surface((W, H))
-#
-#
-#def show_image(image, width, height):
-#    surface = pygame.image.fromstring(image, (width, height), 'RGB')
-#    screen.blit(surface, (0, 0))
-#    pygame.display.flip()
-#
+try:
+    psyco.bind(BitReader)
+    psyco.bind(get_block)
+    psyco.bind(get_gob)
+    psyco.bind(get_mb)
+    psyco.bind(inverse_dct)
+    psyco.bind(read_picture)
+except:
+    print "Unable to bind video decoding methods with psyco. Proceeding anyways, but video decoding will be slow!"
+
 
 def main():
     fh = open('framewireshark.raw', 'r')
@@ -545,13 +540,22 @@ def main():
     t = 0
     for i in range(runs):
         print '.',
-        br = BitReader(data)
-        width, height, image, ti = read_picture(br)
-        show_image(image, width, height)
+        width, height, image, ti = read_picture(data)
+        #show_image(image, width, height)
         t += ti
     print
     print 'avg time:\t', t / runs, 'sec'
     print 'avg fps:\t', 1 / (t / runs), 'fps'
+    if 'image' in sys.argv:
+        import pygame
+        pygame.init()
+        W, H = 320, 240
+        screen = pygame.display.set_mode((W, H))
+        surface = pygame.image.fromstring(image, (width, height), 'RGB')
+        screen.blit(surface, (0, 0))
+        pygame.display.flip()
+        raw_input()
+
 
 if __name__ == '__main__':
     if 'profile' in sys.argv:
