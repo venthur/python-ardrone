@@ -12,6 +12,22 @@ The drone's property 'image' contains always the latest image from the camera.
 The drone's property 'navdata' contains always the latest navdata.
 
 
+Demo:
+-----
+
+There is also a demo application included which shows the video from the drone
+and lets you remote-control the drone with the keyboard:
+
+  RETURN      - takeoff
+  SPACE       - land
+  BACKSPACE   - reset (from emergency)
+  a/d         - left/right
+  w/s         - forward/back
+  1,2,...,0   - speed
+  UP/DOWN     - altitude
+  LEFT/RIGHT  - turn left/right
+
+
 Repository:
 -----------
 
