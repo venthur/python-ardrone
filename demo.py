@@ -21,7 +21,12 @@
 # THE SOFTWARE.
 
 
-import math
+"""Demo app for the AR.Drone.
+
+This simple application allows to control the drone and see the drone's video
+stream.
+"""
+
 
 import pygame
 
