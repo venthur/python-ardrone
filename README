@@ -7,6 +7,7 @@ Getting Started:
 >>> # emergency mode
 >>> drone.takeoff()
 >>> drone.land()
+>>> drone.halt()
 
 The drone's property 'image' contains always the latest image from the camera.
 The drone's property 'navdata' contains always the latest navdata.
