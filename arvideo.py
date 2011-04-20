@@ -41,7 +41,7 @@ ZIG_ZAG_POSITIONS = array.array('B', ( 0,  1,  8, 16,  9,  2, 3, 10,
                      53, 60, 61, 54, 47, 55, 62, 63))
 
 # int16_t
-iquant_tab = array.array('B', ( 3,  5,  7,  9, 11, 13, 15, 17,
+IQUANT_TAB = array.array('B', ( 3,  5,  7,  9, 11, 13, 15, 17,
                5,  7,  9, 11, 13, 15, 17, 19,
                7,  9, 11, 13, 15, 17, 19, 21,
                9, 11, 13, 15, 17, 19, 21, 23,
@@ -51,7 +51,7 @@ iquant_tab = array.array('B', ( 3,  5,  7,  9, 11, 13, 15, 17,
               17, 19, 21, 23, 25, 27, 29, 31))
 
 # Used for upscaling the 8x8 b- and r-blocks to 16x16
-scalemap = array.array('B', ( 0,  0,  1,  1,  2,  2,  3,  3,
+SCALE_TAB = array.array('B', ( 0,  0,  1,  1,  2,  2,  3,  3,
              0,  0,  1,  1,  2,  2,  3,  3,
              8,  8,  9,  9, 10, 10, 11, 11,
              8,  8,  9,  9, 10, 10, 11, 11,
@@ -87,7 +87,7 @@ scalemap = array.array('B', ( 0,  0,  1,  1,  2,  2,  3,  3,
             60, 60, 61, 61, 62, 62, 63, 63,
             60, 60, 61, 61, 62, 62, 63, 63))
 
-clzlut = array.array('B', (8, 7, 6, 6, 5, 5, 5, 5, 4, 4, 4, 4, 4,
+CLZLUT = array.array('B', (8, 7, 6, 6, 5, 5, 5, 5, 4, 4, 4, 4, 4,
           4, 4, 4, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 2, 2, 2,
           2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
           2, 2, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
@@ -156,7 +156,7 @@ MB_ROW_COL_MAP = [[0, 0], [0, 1], [0, 2], [0, 3], [0, 4], [0, 5], [0, 6], [0, 7]
         [15, 10], [15, 11], [15, 12], [15, 13], [15, 14], [15, 15]]
 
 
-zeros = array.array('i', [0 for i in range(256)])
+ZEROS = array.array('i', [0 for i in range(256)])
 
 FIX_0_298631336 = 2446
 FIX_0_390180644 = 3196
@@ -235,8 +235,8 @@ def get_pheader(bitreader):
 
 
 def inverse_dct(block):
-    workspace = zeros[0:64]
-    data = zeros[0:64]
+    workspace = ZEROS[0:64]
+    data = ZEROS[0:64]
 
     for pointer in range(8):
 
@@ -381,7 +381,7 @@ def get_mb(bitreader, picture, width, offset):
 
         # ycbcr to rgb
         for i in range(256):
-            j = scalemap[i]
+            j = SCALE_TAB[i]
             Y = y[i] - 16
             B = cb[j] - 128
             R = cr[j] - 128
@@ -406,7 +406,7 @@ def _first_half(data):
     # data has to be 12 bits wide
     streamlen = 0
     # count the zeros
-    zerocount = clzlut[data >> 4];
+    zerocount = CLZLUT[data >> 4];
     data = (data << (zerocount + 1)) & 0b111111111111
     streamlen += zerocount + 1
     # get number of remaining bits to read
@@ -423,7 +423,7 @@ def _first_half(data):
 def _second_half(data):
     # data has to be 15 bits wide
     streamlen = 0
-    zerocount = clzlut[data >> 7];
+    zerocount = CLZLUT[data >> 7];
     data = (data << (zerocount + 1)) & 0b111111111111111
     streamlen += zerocount + 1
     # 01 == EOB
@@ -452,8 +452,8 @@ SHIFT = 32*(TRIES-1)
 
 def get_block(bitreader, has_coeff):
     # read the first 10 bits in a 16 bit datum
-    out_list = zeros[0:64]
-    out_list[0] = int(bitreader.read(10)) * iquant_tab[0]
+    out_list = ZEROS[0:64]
+    out_list[0] = int(bitreader.read(10)) * IQUANT_TAB[0]
     if not has_coeff:
         return inverse_dct(out_list)
     i = 1
@@ -476,7 +476,7 @@ def get_block(bitreader, has_coeff):
                 bitreader.read(streamlen)
                 return inverse_dct(out_list)
             j = ZIG_ZAG_POSITIONS[i]
-            out_list[j] = tmp*iquant_tab[j]
+            out_list[j] = tmp*IQUANT_TAB[j]
             i += 1
         #######################################################################
         bitreader.read(streamlen)
