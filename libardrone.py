@@ -147,8 +147,7 @@ class ARDrone(object):
         self.lock.release()
 
     def new_video_packet(self, data):
-        br = arvideo.BitReader(data)
-        width, height, image, time = arvideo.read_picture(br)
+        width, height, image, time = arvideo.read_picture(data)
         self.image = image
         self.time = time
         pass

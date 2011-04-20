@@ -505,7 +505,8 @@ def get_gob(bitreader, picture, slicenr, width):
         get_mb(bitreader, picture, width, offset+16*i)
 
 
-def read_picture(bitreader):
+def read_picture(data):
+    bitreader = BitReader(data)
     t = datetime.datetime.now()
     width, height = get_pheader(bitreader)
     slices = height / 16

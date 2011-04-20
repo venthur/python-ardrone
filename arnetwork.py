@@ -101,8 +101,7 @@ class ARDroneNetworkProcess(multiprocessing.Process):
                             data, address = video_socket.recvfrom(65535)
                         except:
                             break
-                    br = arvideo.BitReader(data)
-                    w, h, image, t = arvideo.read_picture(br)
+                    w, h, image, t = arvideo.read_picture(data)
                     try:
                         self.video_pipe.send(image)
                     except e:
