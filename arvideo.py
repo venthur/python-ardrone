@@ -21,6 +21,15 @@
 # THE SOFTWARE.
 
 
+"""
+Video decoding for the AR.Drone.
+
+This library uses psyco to speed-up the decoding process. It is however written
+in a way that it works also without psyco installed. On the author's
+development machine the speed up is from 2FPS w/o psyco to > 20 FPS w/ psyco.
+"""
+
+
 import array
 import cProfile
 import datetime
@@ -203,7 +212,7 @@ def _second_half(data):
     """
     # data has to be 15 bits wide
     streamlen = 0
-    zerocount = CLZLUT[data >> 7];
+    zerocount = CLZLUT[data >> 7]
     data = (data << (zerocount + 1)) & 0b111111111111111
     streamlen += zerocount + 1
     # 01 == EOB
@@ -249,7 +258,7 @@ class BitReader(object):
         while nbits > self.bits_left:
             try:
                 self.chunk = (self.chunk << 32) | struct.unpack_from('<I', self.packet, self.offset)[0]
-            except:
+            except struct.error:
                 self.chunk <<= 32
             self.offset += 4
             self.bits_left += 32
@@ -532,7 +541,7 @@ try:
     psyco.bind(get_mb)
     psyco.bind(inverse_dct)
     psyco.bind(read_picture)
-except:
+except NameError:
     print "Unable to bind video decoding methods with psyco. Proceeding anyways, but video decoding will be slow!"
 
 

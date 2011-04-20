@@ -30,11 +30,9 @@ import socket
 import struct
 import sys
 import threading
-import time
 import multiprocessing
 
 import arnetwork
-import arvideo
 
 
 __author__ = "Bastian Venthur"
@@ -46,6 +44,11 @@ ARDRONE_COMMAND_PORT = 5556
 
 
 class ARDrone(object):
+    """ARDrone Class.
+
+    Instanciate this class to control your drone and receive decoded video and
+    navdata.
+    """
 
     def __init__(self):
         self.seq_nr = 1
@@ -66,48 +69,65 @@ class ARDrone(object):
         self.time = 0
 
     def takeoff(self):
+        """Make the drone takeoff."""
         self.at(at_ftrim)
         self.at(at_config, "control:altitude_max", "20000")
         self.at(at_ref, True)
 
     def land(self):
+        """Make the drone land."""
         self.at(at_ref, False)
 
     def hover(self):
+        """Make the drone hover."""
         self.at(at_pcmd, False, 0, 0, 0, 0)
 
     def move_left(self):
+        """Make the drone move left."""
         self.at(at_pcmd, True, -self.speed, 0, 0, 0)
 
     def move_right(self):
+        """Make the drone move right."""
         self.at(at_pcmd, True, self.speed, 0, 0, 0)
 
     def move_up(self):
+        """Make the drone rise upwards."""
         self.at(at_pcmd, True, 0, 0, self.speed, 0)
 
     def move_down(self):
+        """Make the drone decent downwards."""
         self.at(at_pcmd, True, 0, 0, -self.speed, 0)
 
     def move_forward(self):
+        """Make the drone move forward."""
         self.at(at_pcmd, True, 0, -self.speed, 0, 0)
 
     def move_backward(self):
+        """Make the drone move backwards."""
         self.at(at_pcmd, True, 0, self.speed, 0, 0)
 
     def turn_left(self):
+        """Make the drone rotate left."""
         self.at(at_pcmd, True, 0, 0, 0, -self.speed)
 
     def turn_right(self):
+        """Make the drone rotate right."""
         self.at(at_pcmd, True, 0, 0, 0, self.speed)
 
     def reset(self):
+        """Toggle the drone's emergency state."""
         self.at(at_ref, False, True)
         self.at(at_ref, False, False)
 
     def trim(self):
+        """Flat trim the drone."""
         self.at(at_ftrim)
 
     def set_speed(self, speed):
+        """Set the drone's speed.
+
+        Valid values are floats from [0..1]
+        """
         self.speed = speed
 
     def at(self, cmd, *args, **kwargs):
@@ -126,9 +146,21 @@ class ARDrone(object):
         self.lock.release()
 
     def commwdg(self):
+        """Communication watchdog signal.
+
+        This needs to be send regulary to keep the communication w/ the drone
+        alive.
+        """
         self.at(at_comwdg)
 
     def halt(self):
+        """Shutdown the drone.
+
+        This method does not land or halt the actual drone, but the
+        communication with the drone. You should call it at the end of your
+        application to close all sockets, pipes, processes and threads related
+        with this object.
+        """
         self.lock.acquire()
         self.com_watchdog_timer.cancel()
         self.com_pipe.send('die!')
@@ -186,7 +218,7 @@ def at_ftrim(seq):
     Parameters:
     seq -- sequence number
     """
-    at("FTRIM", seq)
+    at("FTRIM", seq, [])
 
 def at_zap(seq, stream):
     """
@@ -200,6 +232,7 @@ def at_zap(seq, stream):
     at("ZAP", seq, [stream])
 
 def at_config(seq, option, value):
+    """Set configuration parameters of the drone."""
     at("CONFIG", seq, [str(option), str(value)])
 
 def at_comwdg(seq):
@@ -207,7 +240,7 @@ def at_comwdg(seq):
     Reset communication watchdog.
     """
     # FIXME: no sequence number
-    at("COMWDG", seq)
+    at("COMWDG", seq, [])
 
 def at_aflight(seq, flag):
     """
@@ -256,7 +289,7 @@ def at_anim(seq, anim, d):
     """
     at("ANIM", seq, [anim, d])
 
-def at(command, seq, params=[]):
+def at(command, seq, params):
     """
     Parameters:
     command -- the command
@@ -272,7 +305,6 @@ def at(command, seq, params=[]):
         elif type(p) == str:
             param_str += ',"'+p+'"'
     msg = "AT*%s=%i%s\r" % (command, seq, param_str)
-    print msg
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.sendto(msg, ("192.168.1.1", ARDRONE_COMMAND_PORT))
 
@@ -331,7 +363,7 @@ def decode_navdata(packet):
         try:
             id_nr, size =  struct.unpack_from("HH", packet, offset)
             offset += struct.calcsize("HH")
-        except:
+        except struct.error:
             break
         values = []
         for i in range(size-struct.calcsize("HH")):
@@ -354,7 +386,6 @@ if __name__ == "__main__":
 
     import termios
     import fcntl
-    import sys
     import os
     
     fd = sys.stdin.fileno()
@@ -374,7 +405,7 @@ if __name__ == "__main__":
             try:
                 c = sys.stdin.read(1)
                 c = c.lower()
-                print "Got character", `c`
+                print "Got character", 'c'
                 if c == 'a':
                     drone.move_left()
                 if c == 'd':

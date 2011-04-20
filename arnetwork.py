@@ -19,6 +19,10 @@
 # THE SOFTWARE.
 
 
+"""
+This module provides access to the data provided by the AR.Drone.
+"""
+
 import select
 import socket
 import threading
@@ -29,6 +33,11 @@ import arvideo
 
 
 class ARDroneNetworkProcess(multiprocessing.Process):
+    """ARDrone Network Process.
+
+    This process collects data from the video and navdata port, converts the
+    data and sends it to the IPCThread.
+    """
 
     def __init__(self, nav_pipe, video_pipe, com_pipe):
         multiprocessing.Process.__init__(self)
@@ -54,20 +63,20 @@ class ARDroneNetworkProcess(multiprocessing.Process):
                 if i == video_socket:
                     while 1:
                         try:
-                            data, address = video_socket.recvfrom(65535)
-                        except:
+                            data = video_socket.recv(65535)
+                        except IOError:
+                            # we consumed every packet from the socket and
+                            # continue with the last one
                             break
                     w, h, image, t = arvideo.read_picture(data)
-                    try:
-                        self.video_pipe.send(image)
-                    except e:
-                        print "error while sending in video pipe."
-                        print e
+                    self.video_pipe.send(image)
                 elif i == nav_socket:
                     while 1:
                         try:
-                            data, address = nav_socket.recvfrom(65535)
-                        except:
+                            data = nav_socket.recv(65535)
+                        except IOError:
+                            # we consumed every packet from the socket and
+                            # continue with the last one
                             break
                     navdata = libardrone.decode_navdata(data)
                     self.nav_pipe.send(navdata)
@@ -78,7 +87,13 @@ class ARDroneNetworkProcess(multiprocessing.Process):
         video_socket.close()
         nav_socket.close()
 
+
 class IPCThread(threading.Thread):
+    """Inter Process Communication Thread.
+
+    This thread collects the data from the ARDroneNetworkProcess and forwards
+    it to the ARDreone.
+    """
 
     def __init__(self, drone):
         threading.Thread.__init__(self)
@@ -99,5 +114,6 @@ class IPCThread(threading.Thread):
                     self.drone.navdata = navdata
 
     def stop(self):
+        """Stop the IPCThread activity."""
         self.stopping = True
 
