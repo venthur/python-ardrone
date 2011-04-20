@@ -405,7 +405,7 @@ if __name__ == "__main__":
             try:
                 c = sys.stdin.read(1)
                 c = c.lower()
-                print "Got character", 'c'
+                print "Got character", c
                 if c == 'a':
                     drone.move_left()
                 if c == 'd':
