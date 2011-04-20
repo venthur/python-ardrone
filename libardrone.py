@@ -54,10 +54,6 @@ class ARDrone(object):
         self.lock = threading.Lock()
         self.speed = 0.2
         self.at(at_config, "general:navdata_demo", "TRUE")
-        # network via threads
-        #self.network_thread = arnetwork.ARDroneNetworkThread(self)
-        #self.network_thread.start()
-        # network via process
         self.video_pipe, video_pipe_other = multiprocessing.Pipe()
         self.nav_pipe, nav_pipe_other = multiprocessing.Pipe()
         self.com_pipe, com_pipe_other = multiprocessing.Pipe()
@@ -135,26 +131,12 @@ class ARDrone(object):
     def halt(self):
         self.lock.acquire()
         self.com_watchdog_timer.cancel()
-        # networking w/ threads
-        #self.network_thread.stop()
-        #self.network_thread.join()
-        # networking w/ processes
         self.com_pipe.send('die!')
         self.network_process.terminate()
         self.network_process.join()
         self.ipc_thread.stop()
         self.ipc_thread.join()
         self.lock.release()
-
-    def new_video_packet(self, data):
-        width, height, image, time = arvideo.read_picture(data)
-        self.image = image
-        self.time = time
-        pass
-
-    def new_navdata_packet(self, data):
-        navdata = decode_navdata(data)
-        pass
 
 
 ###############################################################################
