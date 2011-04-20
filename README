@@ -1,0 +1,40 @@
+Getting Started:
+----------------
+
+>>> import libardrone
+>>> drone = libardrone.ARDrone()
+>>> # You might need to call drone.reset() before taking off if the drone is in
+>>> # emergency mode
+>>> drone.takeoff()
+>>> drone.land()
+
+The drone's property 'image' contains always the latest image from the camera.
+The drone's property 'navdata' contains always the latest navdata.
+
+
+Repository:
+-----------
+
+The public repository is located here:
+
+  git://github.com/venthur/python-ardrone.git
+
+
+Requirements:
+-------------
+
+This software was tested with the following setup:
+
+  * Python 2.6.6
+  * Psyco 1.6 (recommended)
+  * Pygame 1.8.1 (only for the demo)
+  * Unmodified AR.Drone firmware 1.5.1
+
+
+License:
+--------
+
+This software is published under the terms of the MIT License:
+
+  http://www.opensource.org/licenses/mit-license.php
+
