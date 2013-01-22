@@ -44,7 +44,7 @@ def enqueue_output(out, queue, listener):
 Usage: pass a listener, with a method 'data_ready' which will be called whenever there's output
 from ffmpeg. This will be called in an arbitrary thread. You can later call H264ToPng.get_data_if_any to retrieve
 said data.
-You can also call put_data to write some data.
+You should then call write repeatedly to write some encoded H.264 data.
 """
 class H264ToPNG:
 
@@ -56,7 +56,7 @@ class H264ToPNG:
 		t.daemon = True # thread dies with the program
 		t.start()
 
-	def put_data(self, data):
+	def write(self, data):
 		self.writefd.write(data)
 
 	def get_data_if_any(self):
