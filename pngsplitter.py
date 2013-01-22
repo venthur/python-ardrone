@@ -1,4 +1,5 @@
 # Copyright (c) 2013 Adrian Taylor
+# Inspired by equivalent node.js code by Felix Geisendörfer
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
