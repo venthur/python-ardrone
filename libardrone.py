@@ -50,7 +50,9 @@ class ARDrone(object):
     navdata.
     """
 
-    def __init__(self):
+    def __init__(self, is_ar_drone_2=False):
+				# TODO open control port and send AT*CTRL with mode 4 to get a dump of Drone details, including version, so
+				# the above Boolean is unnecessary.
         self.seq_nr = 1
         self.timer_t = 0.2
         self.com_watchdog_timer = threading.Timer(self.timer_t, self.commwdg)
@@ -60,7 +62,7 @@ class ARDrone(object):
         self.video_pipe, video_pipe_other = multiprocessing.Pipe()
         self.nav_pipe, nav_pipe_other = multiprocessing.Pipe()
         self.com_pipe, com_pipe_other = multiprocessing.Pipe()
-        self.network_process = arnetwork.ARDroneNetworkProcess(nav_pipe_other, video_pipe_other, com_pipe_other)
+        self.network_process = arnetwork.ARDroneNetworkProcess(nav_pipe_other, video_pipe_other, com_pipe_other, is_ar_drone_2)
         self.network_process.start()
         self.ipc_thread = arnetwork.IPCThread(self)
         self.ipc_thread.start()

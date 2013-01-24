@@ -29,7 +29,6 @@ import threading
 import multiprocessing
 
 import libardrone
-import arvideo
 
 
 class ARDroneNetworkProcess(multiprocessing.Process):
@@ -39,17 +38,28 @@ class ARDroneNetworkProcess(multiprocessing.Process):
     data and sends it to the IPCThread.
     """
 
-    def __init__(self, nav_pipe, video_pipe, com_pipe):
+    def __init__(self, nav_pipe, video_pipe, com_pipe, is_ar_drone_2):
         multiprocessing.Process.__init__(self)
         self.nav_pipe = nav_pipe
         self.video_pipe = video_pipe
         self.com_pipe = com_pipe
+        self.is_ar_drone_2 = is_ar_drone_2
+        if is_ar_drone_2:
+            import ar2video
+            self.ar2video = ar2video.ARVideo2()
+        else:
+            import arvideo
 
     def run(self):
-        video_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        video_socket.setblocking(0)
-        video_socket.bind(('', libardrone.ARDRONE_VIDEO_PORT))
-        video_socket.sendto("\x01\x00\x00\x00", ('192.168.1.1', libardrone.ARDRONE_VIDEO_PORT))
+        if is_ar_drone_2:
+            video_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            video_socket.setblocking(0)
+            video_socket.connect(('192.168.1.1', libardrone.ARDRONE_VIDEO_PORT))
+        else:
+            video_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            video_socket.setblocking(0)
+            video_socket.bind(('', libardrone.ARDRONE_VIDEO_PORT))
+            video_socket.sendto("\x01\x00\x00\x00", ('192.168.1.1', libardrone.ARDRONE_VIDEO_PORT))
 
         nav_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         nav_socket.setblocking(0)
@@ -68,7 +78,17 @@ class ARDroneNetworkProcess(multiprocessing.Process):
                             # we consumed every packet from the socket and
                             # continue with the last one
                             break
-                    w, h, image, t = arvideo.read_picture(data)
+                    if self.is_ar_drone_2:
+                        self.ar2video.write(data)
+                        # For now, immediately decode the image for compatibility
+                        # and scale down to 320x240 for the same reason
+                        image = self.ar2video.get_image()
+                        if image == None:
+                            image = Image(320, 240)
+                        image.thumbnail(320, 240)
+                        image = image.tostring()
+                    else:
+                        w, h, image, t = arvideo.read_picture(data)
                     self.video_pipe.send(image)
                 elif i == nav_socket:
                     while 1:

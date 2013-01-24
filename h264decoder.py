@@ -34,10 +34,9 @@ except ImportError:
 
 ON_POSIX = 'posix' in sys.builtin_module_names
 
-def enqueue_output(out, queue, listener):
+def enqueue_output(out, queue, outfileobject):
     for d in iter(out.read, b''):
-		queue.put(d)
-		listener.data_ready()
+		outfileobject.write(d)
 	out.close()
 
 """
@@ -48,21 +47,13 @@ You should then call write repeatedly to write some encoded H.264 data.
 """
 class H264ToPNG:
 
-	def __init__(self, listener):
+	def __init__(self, outfileobject):
 		p = subprocess.Popen(["ffmpeg", "-i", "-", "-f", "image2pipe", "-vcodec", "png", "-r", "5", "-"], stdin=PIPE, stdout=PIPE)
 		self.writefd = p.stdin
 		self.q = Queue()
-		t = Thread(target=enqueue_output, args=(p.stdout, q, listener))
+		t = Thread(target=enqueue_output, args=(p.stdout, q, outfileobject))
 		t.daemon = True # thread dies with the program
 		t.start()
 
 	def write(self, data):
 		self.writefd.write(data)
-
-	def get_data_if_any(self):
-		data = ""
-		while True:
-			try:
-				data += self.q.get_nowait()
-			except Empty:
-				return data
