@@ -49,7 +49,7 @@ You should then call write repeatedly to write some encoded H.264 data.
 class H264ToPNG:
 
 	def __init__(self, outfileobject):
-		p = subprocess.Popen(["ffmpeg", "-i", "-", "-f", "image2pipe", "-vcodec", "png", "-r", "5", "-"], stdin=PIPE, stdout=PIPE)
+		p = Popen(["ffmpeg", "-i", "-", "-f", "image2pipe", "-vcodec", "png", "-r", "5", "-"], stdin=PIPE, stdout=PIPE)
 		self.writefd = p.stdin
 		self.q = Queue()
 		t = Thread(target=enqueue_output, args=(p.stdout, q, outfileobject))
