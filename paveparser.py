@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright (c) 2013 Adrian Taylor
 # Inspired by equivalent node.js code by Felix Geisendörfer
 #

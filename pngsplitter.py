@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright (c) 2013 Adrian Taylor
 # Inspired by equivalent node.js code by Felix Geisendörfer
 #
@@ -75,7 +76,7 @@ class PNGSplitter:
 
     def handle_chunk_data(self):
         chunk_size = self.chunk[0] + 4
-        if self.fewer_remaining_than(chunk_size)
+        if self.fewer_remaining_than(chunk_size):
             return (False, False)
         self.offset += chunk_size
         if self.chunk[1] == "IEND":

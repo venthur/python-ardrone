@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright (c) 2013 Adrian Taylor
 # Inspired by equivalent node.js code by Felix Geisendörfer
 #
@@ -36,8 +37,8 @@ ON_POSIX = 'posix' in sys.builtin_module_names
 
 def enqueue_output(out, queue, outfileobject):
     for d in iter(out.read, b''):
-		outfileobject.write(d)
-	out.close()
+        outfileobject.write(d)
+    out.close()
 
 """
 Usage: pass a listener, with a method 'data_ready' which will be called whenever there's output
