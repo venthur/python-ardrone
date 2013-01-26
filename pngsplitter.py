@@ -34,27 +34,27 @@ Usage: Call put_data repeatedly. An array of PNG files will be returned each tim
 """
 class PNGSplitter:
 
-    def __init__(self):
+    def __init__(self, listener):
         self.buffer = ""
         self.offset         = 0;
-        self.pngStartOffset = null;
-        self.state          = handle_header
-        self.chunk          = None;
+        self.pngStartOffset = None
+        self.state          = self.handle_header
+        self.chunk          = None
+        self.listener       = listener
 
     """
-    Returns a list of zero or more Python Image objects.
+    Write some data.
     """
-    def put_data(self, data):
+    def write(self, data):
         self.buffer += data
-        results = ()
 
         while True:
             (found_png, made_progress) = self.state(self)
             if found_png:
-                results.add(Image.open(StringIO.StringIO(self.buffer.slice(0, self.offset))))
+                listener.image_ready(Image.open(StringIO.StringIO(self.buffer.slice(0, self.offset))))
                 self.buffer = self.buffer.slice(self.offset, self.buffer.length() - self.offset) 
                 self.offset = 0
-                self.state = handle_header
+                self.state = self.handle_header
             if not made_progress:
                 return results
 
@@ -63,13 +63,13 @@ class PNGSplitter:
         if self.fewer_remaining_than(8):
             return (False, False)
         self.offset += 8
-        self.state = handle_chunk_header
+        self.state = self.handle_chunk_header
         return (False, True)
 
     def handle_chunk_header(self):
         if self.fewer_remaining_than(8):
              return (False, False)
-        self.state = handle_chunk_data
+        self.state = self.handle_chunk_data
         self.chunk = struct.unpack(self.buffer.slice(self.offset, 8), ">I4s")
         self.offset += 8
         return (False, True)

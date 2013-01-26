@@ -57,7 +57,7 @@ class PaVEParser:
         self.state = handle_payload
         return True
 
-    def handle_payload:
+    def handle_payload(self):
         if self.fewer_remaining_than(self.payload_size):
              return False
         self.state = handle_header

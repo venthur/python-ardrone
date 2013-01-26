@@ -31,15 +31,15 @@ This is just H.264 encapsulated in a funny way.
 import h264decoder
 import pngsplitter
 import paveparser
-import image
+import Image
 
 class ARVideo2:
 
     def __init__(self):
         self.pngsplit = pngsplitter.PNGSplitter(self)
-        self.h264 = h264decoder.H264Decoder(self.pngsplit)
+        self.h264 = h264decoder.H264ToPNG(self.pngsplit)
         self.paveparser = paveparser.PaVEParser(self.h264)
-        self.latest_image = image.new('RGB', (320, 240))
+        self.latest_image = Image.new('RGB', (320, 240))
 
     """
     Called by the PNG splitter when there's an image ready
