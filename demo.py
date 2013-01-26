@@ -37,7 +37,7 @@ def main():
     pygame.init()
     W, H = 320, 240
     screen = pygame.display.set_mode((W, H))
-    drone = libardrone.ARDrone()
+    drone = libardrone.ARDrone(True)
     clock = pygame.time.Clock()
     running = True
     while running:
