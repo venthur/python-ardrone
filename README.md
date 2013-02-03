@@ -1,6 +1,7 @@
 Getting Started:
 ----------------
 
+```python
 >>> import libardrone
 >>> drone = libardrone.ARDrone()
 >>> # You might need to call drone.reset() before taking off if the drone is in
@@ -8,9 +9,10 @@ Getting Started:
 >>> drone.takeoff()
 >>> drone.land()
 >>> drone.halt()
+```
 
-The drone's property 'image' contains always the latest image from the camera.
-The drone's property 'navdata' contains always the latest navdata.
+The drone's property `image` contains always the latest image from the camera.
+The drone's property `navdata` contains always the latest navdata.
 
 
 Demo:
@@ -19,14 +21,14 @@ Demo:
 There is also a demo application included which shows the video from the drone
 and lets you remote-control the drone with the keyboard:
 
-  RETURN      - takeoff
-  SPACE       - land
-  BACKSPACE   - reset (from emergency)
-  a/d         - left/right
-  w/s         - forward/back
-  1,2,...,0   - speed
-  UP/DOWN     - altitude
-  LEFT/RIGHT  - turn left/right
+    RETURN      - takeoff
+    SPACE       - land
+    BACKSPACE   - reset (from emergency)
+    a/d         - left/right
+    w/s         - forward/back
+    1,2,...,0   - speed
+    UP/DOWN     - altitude
+    LEFT/RIGHT  - turn left/right
 
 
 Repository:
