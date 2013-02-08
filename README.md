@@ -30,6 +30,9 @@ and lets you remote-control the drone with the keyboard:
     UP/DOWN     - altitude
     LEFT/RIGHT  - turn left/right
 
+Here is a [video] of the library in action:
+
+  [video]: http://youtu.be/2HEV37GbUow
 
 Repository:
 -----------
