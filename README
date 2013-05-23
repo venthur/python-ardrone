@@ -43,9 +43,7 @@ Requirements:
 This software was tested with the following setup:
 
   * Python 2.6.6
-  * Psyco 1.6 (recommended)
-  * Pygame 1.8.1 (only for the demo)
-  * Unmodified AR.Drone firmware 1.5.1
+  * Unmodified AR.Drone firmware 2.0
 
 
 License:
