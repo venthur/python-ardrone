@@ -1,0 +1,11 @@
+language: python
+python:
+  - "2.7"
+notifications:
+  - email: false
+install:
+  - sudo apt-get update
+  - sudo apt-get install ffmpeg
+  - pip install -r requirements.txt
+  - pip install -r dev-requirements.txt
+script: py.test -n 4
