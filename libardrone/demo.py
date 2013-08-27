@@ -32,18 +32,18 @@ import pygame
 
 import libardrone
 
-
 def main():
     pygame.init()
     W, H = 320, 240
     screen = pygame.display.set_mode((W, H))
     drone = libardrone.ARDrone(True)
+    drone.reset()
     clock = pygame.time.Clock()
     running = True
     while running:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
-                running = False 
+                running = False
             elif event.type == pygame.KEYUP:
                 drone.hover()
             elif event.type == pygame.KEYDOWN:
@@ -52,8 +52,10 @@ def main():
                     running = False
                 # takeoff / land
                 elif event.key == pygame.K_RETURN:
+                    print "return"
                     drone.takeoff()
                 elif event.key == pygame.K_SPACE:
+                    print "space"
                     drone.land()
                 # emergency
                 elif event.key == pygame.K_BACKSPACE:
@@ -101,6 +103,7 @@ def main():
                     drone.speed = 1.0
 
         try:
+            # print pygame.image
             surface = pygame.image.fromstring(drone.image, (W, H), 'RGB')
             # battery status
             hud_color = (255, 0, 0) if drone.navdata.get('drone_state', dict()).get('emergency_mask', 1) else (10, 10, 255)
@@ -122,4 +125,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-

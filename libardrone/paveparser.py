@@ -53,7 +53,35 @@ class PaVEParser(object):
     def handle_header(self):
         if self.fewer_remaining_than(self.HEADER_SIZE_SHORT):
             return False
-        (signature, version, video_codec, header_size, self.payload_size, encoded_stream_width, encoded_stream_height, display_width, display_height, frame_number, timestamp, total_chunks, chunk_index, frame_type, control, stream_byte_position_lw, stream_byte_position_uw, stream_id, total_slices, slice_index, header1_size, header2_size, reserved2, advertised_size, reserved3) = struct.unpack("<4sBBHIHHHHIIBBBBIIHBBBB2sI12s", self.buffer[0:self.HEADER_SIZE_SHORT])
+
+        drop_old_frames = True
+        if (drop_old_frames):
+            index = self.buffer.rfind('PaVE')
+
+            _buffer = self.buffer
+            if index >= 0:
+                _buffer = self.buffer[index:]
+            frame_type = -1
+
+            _old_buffers = ""
+
+            while index > 0:
+                if (len(_buffer) >= self.HEADER_SIZE_SHORT):
+                    (signature, version, video_codec, header_size, self.payload_size, encoded_stream_width, encoded_stream_height, display_width, display_height, frame_number, timestamp, total_chunks, chunk_index, frame_type, control, stream_byte_position_lw, stream_byte_position_uw, stream_id, total_slices, slice_index, header1_size, header2_size, reserved2, advertised_size, reserved3) = struct.unpack("<4sBBHIHHHHIIBBBBIIHBBBB2sI12s", _buffer[0:self.HEADER_SIZE_SHORT])
+                if (frame_type == 1):
+                    index = 0
+                    self.buffer = _buffer + _old_buffers
+                else:
+                    _old_buffers = _buffer + _old_buffers
+                    _buffer = self.buffer[0:index]
+                    index = _buffer.rfind('PaVE')
+                    _buffer = _buffer[index:]
+
+        (signature, version, video_codec, header_size, self.payload_size, encoded_stream_width,
+         encoded_stream_height, display_width, display_height, frame_number, timestamp, total_chunks,
+         chunk_index, frame_type, control, stream_byte_position_lw, stream_byte_position_uw,
+         stream_id, total_slices, slice_index, header1_size, header2_size, reserved2, advertised_size, reserved3) = struct.unpack("<4sBBHIHHHHIIBBBBIIHBBBB2sI12s", self.buffer[0:self.HEADER_SIZE_SHORT])
+
         if signature != "PaVE":
             self.state = self.handle_misalignment
             return True
