@@ -59,7 +59,7 @@ class ARDrone(object):
         self.com_watchdog_timer = threading.Timer(self.timer_t, self.commwdg)
         self.lock = threading.Lock()
         self.speed = 0.2
-        self.at(at_config, "general:navdata_demo", "FALSE")
+        self.at(at_config, "general:navdata_demo", "TRUE")
         #self.at(at_config, "video:bitrate", "40000")
         #self.at(at_config, "video:video_codec", "129")
         #self.at(at_config, "video:codec_fps", "2")
@@ -140,8 +140,6 @@ class ARDrone(object):
         """
         self.speed = speed
 
-    def set_video(self, mode=0):
-        self.at(at_video, mode)
 
     def at(self, cmd, *args, **kwargs):
         """Wrapper for the low level at commands.
@@ -323,19 +321,6 @@ def at(command, seq, params):
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.sendto(msg, ("192.168.1.1", ARDRONE_COMMAND_PORT))
 
-def at_video(seq, mode):
-    H264_360P_CODEC = 0x81
-    MP4_360P_H264_720P_CODEC = 0x82
-    H264_720P_CODEC = 0x83
-    MP4_360P_SLRS_CODEC = 0x84
-    H264_360P_SLRS_CODEC = 0x85
-    H264_720P_SLRS_CODEC = 0x86
-    H264_AUTO_RESIZE_CODEC = 0x87 # resolution is automatically adjusted according to bitrate
-    MP4_360P_H264_360P_CODEC = 0x88
-    msg = 'AT*CONFIG=%i, "video:video_codec", "131"\r' % seq
-    msg = 'AT*CONFIG=%i, "video:bitrate","4000"\r' % seq
-    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    sock.sendto(msg, ("192.168.1.1", ARDRONE_COMMAND_PORT))
 def f2i(f):
     """Interpret IEEE-754 floating-point value as signed integer.
 
@@ -433,7 +418,7 @@ if __name__ == "__main__":
         while 1:
             if startvideo:
                 try:
-                    print 'num_frames = ', drone.navdata[0]['num_frames']
+                    #print 'num_frames = ', drone.navdata[0]['num_frames']
                     cv2.imshow("Visu", cv2.cvtColor(drone.image, cv2.COLOR_BGR2RGB))
                     cv2.waitKey(1)
                 except:
@@ -472,9 +457,9 @@ if __name__ == "__main__":
                     drone.trim()
                 if c == 'i':
                     startvideo = True
-                    print 'Emergency landing =', drone.navdata['drone_state']['emergency_mask']
-                    print 'User emergency landing = ', drone.navdata['drone_state']['user_el']
-                    print 'Navdata type= ', drone.navdata['drone_state']['navdata_demo_mask']
+                    #print 'Emergency landing =', drone.navdata['drone_state']['emergency_mask']
+                    #print 'User emergency landing = ', drone.navdata['drone_state']['user_el']
+                    #print 'Navdata type= ', drone.navdata['drone_state']['navdata_demo_mask']
                 if c == 'j':
                     print "Changing bitrate..."
                     drone.at(at_config, "video:bitrate", 4000)
