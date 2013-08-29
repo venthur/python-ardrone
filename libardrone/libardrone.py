@@ -35,6 +35,7 @@ import multiprocessing
 
 import arnetwork
 
+import time
 
 __author__ = "Bastian Venthur"
 
@@ -42,6 +43,11 @@ __author__ = "Bastian Venthur"
 ARDRONE_NAVDATA_PORT = 5554
 ARDRONE_VIDEO_PORT = 5555
 ARDRONE_COMMAND_PORT = 5556
+ARDRONE_CONTROL_PORT = 5559
+
+SESSION_ID = "943dac23"
+USER_ID = "36355d78"
+APP_ID = "21d958e4"
 
 
 class ARDrone(object):
@@ -49,20 +55,80 @@ class ARDrone(object):
 
     Instanciate this class to control your drone and receive decoded video and
     navdata.
+    Possible value for video codec (Ardrone2):
+      NULL_CODEC    = 0,
+      UVLC_CODEC    = 0x20,       // codec_type value is used for START_CODE
+      P264_CODEC    = 0x40,
+      MP4_360P_CODEC = 0x80,
+      H264_360P_CODEC = 0x81,
+      MP4_360P_H264_720P_CODEC = 0x82,
+      H264_720P_CODEC = 0x83,
+      MP4_360P_SLRS_CODEC = 0x84,
+      H264_360P_SLRS_CODEC = 0x85,
+      H264_720P_SLRS_CODEC = 0x86,
+      H264_AUTO_RESIZE_CODEC = 0x87,    // resolution is automatically adjusted according to bitrate
+      MP4_360P_H264_360P_CODEC = 0x88,
     """
 
     def __init__(self, is_ar_drone_2=False):
-		# TODO open control port and send AT*CTRL with mode 4 to get a dump of Drone details, including version, so
-		# the above Boolean is unnecessary.
+
         self.seq_nr = 1
-        self.timer_t = 0.5
+        self.timer_t = 0.2
         self.com_watchdog_timer = threading.Timer(self.timer_t, self.commwdg)
         self.lock = threading.Lock()
         self.speed = 0.2
+        self.config_ids_string = [SESSION_ID, USER_ID, APP_ID]
+
         self.at(at_config, "general:navdata_demo", "TRUE")
-        #self.at(at_config, "video:bitrate", "40000")
-        #self.at(at_config, "video:video_codec", "129")
-        #self.at(at_config, "video:codec_fps", "2")
+
+        if (True):
+
+            self.at(at_config, "custom:session_id", SESSION_ID)
+            self.at(at_config, "custom:profile_id", USER_ID)
+            self.at(at_config, "custom:application_id", APP_ID)
+            self.at(at_config_ids, self.config_ids_string)
+            time.sleep(0.5)
+            self.at(at_config, "general:navdata_demo", "TRUE")
+            time.sleep(0.5)
+            self.at(at_config_ids, self.config_ids_string)
+            time.sleep(0.5)
+            self.at(at_config, "general:video_enable", "TRUE")
+            time.sleep(0.5)
+            print "Waiting 1s and sending request for controls"
+            time.sleep(0.5)
+
+            self.at(at_config_ids , self.config_ids_string)
+            self.at(at_config, "custom:session_id", SESSION_ID)
+            time.sleep(0.5)
+
+            self.at(at_config_ids , self.config_ids_string)
+            self.at(at_config, "custom:profile_id", USER_ID)
+            time.sleep(0.5)
+
+            self.at(at_config_ids , self.config_ids_string)
+            self.at(at_config, "custom:application_id", APP_ID)
+            time.sleep(0.5)
+
+            self.at(at_config_ids , self.config_ids_string)
+            self.at(at_config, "video:bitrate_control_mode", "1")
+            time.sleep(0.5)
+
+            self.at(at_config_ids , self.config_ids_string)
+            self.at(at_config, "video:bitrate", "10000")
+            time.sleep(0.5)
+
+            self.at(at_config_ids , self.config_ids_string)
+            self.at(at_config, "video:max_bitrate", "10000")
+            time.sleep(0.5)
+
+            self.at(at_config_ids , self.config_ids_string)
+            self.at(at_config, "video:codec_fps", "30")
+            time.sleep(0.5)
+
+            self.at(at_config_ids , self.config_ids_string)
+            self.at(at_config, "video:video_codec", 0x85)
+            time.sleep(0.5)
+
 
         self.video_pipe, video_pipe_other = multiprocessing.Pipe()
         self.nav_pipe, nav_pipe_other = multiprocessing.Pipe()
@@ -77,6 +143,7 @@ class ARDrone(object):
         self.image = ""
         self.navdata = dict()
         self.time = 0
+
 
     def takeoff(self):
         """Make the drone takeoff."""
@@ -200,7 +267,6 @@ def at_ref(seq, takeoff, emergency=False):
         p += 0b1000000000
     if emergency:
         p += 0b0100000000
-    print p
     at("REF", seq, [p])
 
 def at_pcmd(seq, progressive, lr, fb, vv, va):
@@ -246,6 +312,14 @@ def at_zap(seq, stream):
 def at_config(seq, option, value):
     """Set configuration parameters of the drone."""
     at("CONFIG", seq, [str(option), str(value)])
+
+def at_config_ids(seq, value):
+    """Set configuration parameters of the drone."""
+    at("CONFIG_IDS", seq, value)
+
+def at_ctrl(seq, num):
+    """Ask the parrot to drop its configuration file"""
+    at("CTRL", seq, [num, 0])
 
 def at_comwdg(seq):
     """
@@ -384,7 +458,7 @@ def decode_navdata(packet):
             offset += struct.calcsize("c")
         # navdata_tag_t in navdata-common.h
         if id_nr == 0:
-            values = struct.unpack_from("IIfffIfffI", "".join(values))
+            values = struct.unpack_from("IIfffffffI", "".join(values))
             values = dict(zip(['ctrl_state', 'battery', 'theta', 'phi', 'psi', 'altitude', 'vx', 'vy', 'vz', 'num_frames'], values))
             # convert the millidegrees into degrees and round to int, as they
             # are not so precise anyways
@@ -411,18 +485,21 @@ if __name__ == "__main__":
     fcntl.fcntl(fd, fcntl.F_SETFL, oldflags | os.O_NONBLOCK)
 
     drone = ARDrone(is_ar_drone_2=True)
+    time.sleep(10000)
     import cv2
     import numpy as np
     try:
         startvideo = False
         while 1:
+            time.sleep(.01)
             if startvideo:
                 try:
-                    #print 'num_frames = ', drone.navdata[0]['num_frames']
-                    cv2.imshow("Visu", cv2.cvtColor(drone.image, cv2.COLOR_BGR2RGB))
-                    cv2.waitKey(1)
+                    im = cv2.cvtColor(np.copy(drone.image), cv2.COLOR_BGR2RGB)
+                    cv2.imshow("Drone camera", im)
+                    cv2.waitKey(2)
                 except:
                     pass
+
             try:
                 c = sys.stdin.read(1)
                 c = c.lower()
@@ -456,19 +533,18 @@ if __name__ == "__main__":
                 if c == 'y':
                     drone.trim()
                 if c == 'i':
-                    startvideo = True
-                    #print 'Emergency landing =', drone.navdata['drone_state']['emergency_mask']
-                    #print 'User emergency landing = ', drone.navdata['drone_state']['user_el']
-                    #print 'Navdata type= ', drone.navdata['drone_state']['navdata_demo_mask']
+                    #startvideo = True
+                    print 'Emergency landing =', drone.navdata['drone_state']['emergency_mask']
+                    print 'User emergency landing = ', drone.navdata['drone_state']['user_el']
+                    print 'Navdata type= ', drone.navdata['drone_state']['navdata_demo_mask']
+                    print 'Altitude= ', drone.navdata[0]['altitude']
+                    print 'video enable= ', drone.navdata['drone_state']['video_mask']
+                    print 'vision enable= ', drone.navdata['drone_state']['vision_mask']
                 if c == 'j':
-                    print "Changing bitrate..."
-                    drone.at(at_config, "video:bitrate", 4000)
-                if c == 'k':
-                    print "Changing codec..."
-                    drone.at(at_config, "video:video_codec", 129)
-                if c == 'l':
-                    print "fps"
-                    drone.at(at_config, "video:codec_fps", "2")
+                    print "Asking for configuration..."
+                    drone.at(at_ctrl, 5)
+                    time.sleep(0.5)
+                    drone.at(at_ctrl, 4)
             except IOError:
                 pass
     finally:

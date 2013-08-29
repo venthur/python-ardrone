@@ -28,17 +28,21 @@ H.264 video decoder for AR.Drone 2.0. Uses ffmpeg.
 import sys
 from subprocess import PIPE, Popen
 from threading  import Thread
+import time
 try:
     from Queue import Queue, Empty
 except ImportError:
-	from queue import Queue, Empty  # python 3.x
+    from queue import Queue, Empty  # python 3.x
 
 ON_POSIX = 'posix' in sys.builtin_module_names
 
 def enqueue_output(out, queue, outfileobject):
     while True:
-        r = out.read(100)
+        inittime = time.time()
+        r = out.read(50000)
+        #print 'reading enqueue output in ', time.time() - inittime
         outfileobject.write(r)
+        time.sleep(0.0001)
 
 """
 Usage: pass a listener, with a method 'data_ready' which will be called whenever there's output
@@ -47,13 +51,16 @@ said data.
 You should then call write repeatedly to write some encoded H.264 data.
 """
 class H264ToPNG(object):
-	def __init__(self, outfileobject):
-		p = Popen(["ffmpeg", "-i", "-", "-f", "image2pipe", "-vcodec", "png", "-r", "5", "-"], stdin=PIPE, stdout=PIPE, stderr=open('/dev/null', 'w'))
-		self.writefd = p.stdin
-		self.q = Queue()
-		t = Thread(target=enqueue_output, args=(p.stdout, self.q, outfileobject))
-		t.daemon = True # thread dies with the program
-		t.start()
+    def __init__(self, outfileobject=None):
+        if outfileobject is not None:
+            p = Popen(["ffmpeg", "-i", "-", "-r", "24", "-f", "image2pipe", "-vcodec", "png", "-"], stdin=PIPE, stdout=PIPE, stderr=open('/dev/null', 'w'))
+            self.q = Queue()
+            t = Thread(target=enqueue_output, args=(p.stdout, self.q, outfileobject))
+            t.daemon = True # thread dies with the program
+            t.start()
+        else:
+            p = Popen(["nice", "-n", "15", "ffplay", "-i", "-"], stdin=PIPE)
+        self.writefd = p.stdin
 
-	def write(self, data):
+    def write(self, data):
             self.writefd.write(data)

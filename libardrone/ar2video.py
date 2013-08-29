@@ -32,11 +32,17 @@ import h264decoder
 import pngsplitter
 import paveparser
 import Image
+import time
 
 class ARVideo2(object):
-    def __init__(self, video_pipe = None):
-        self.pngsplit = pngsplitter.PNGSplitter(self)
-        self.h264 = h264decoder.H264ToPNG(self.pngsplit)
+    def __init__(self, video_pipe=None):
+        DEBUG = True
+
+        if (DEBUG):
+            self.h264 = h264decoder.H264ToPNG(None)
+        else:
+            self.pngsplit = pngsplitter.PNGSplitter(self)
+            self.h264 = h264decoder.H264ToPNG(self.pngsplit)
         self.paveparser = paveparser.PaVEParser(self.h264)
         self.latest_image = None
         self.video_pipe = video_pipe

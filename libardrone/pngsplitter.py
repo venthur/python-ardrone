@@ -28,6 +28,7 @@ Splits a stream of PNGs into individual files.
 import Image
 import StringIO
 import struct
+import time
 
 """
 Usage: Call put_data repeatedly. An array of PNG files will be returned each time you call it.
@@ -41,13 +42,17 @@ class PNGSplitter(object):
         self.state          = self.handle_header
         self.chunk          = None
         self.listener       = listener
+        self.data_size      = 0
+        self.init_time = time.time()
 
     """
     Write some data.
     """
     def write(self, data):
+        self.data_size += len(data)
+        t = time.time() - self.init_time
+        print "size processed = ", self.data_size / 1000 #, " after ", t
         self.buffer += data
-
         while True:
             (found_png, made_progress) = self.state()
             if found_png:
@@ -68,7 +73,7 @@ class PNGSplitter(object):
 
     def handle_chunk_header(self):
         if self.fewer_remaining_than(8):
-             return (False, False)
+            return (False, False)
         self.state = self.handle_chunk_data
         self.chunk = struct.unpack( ">I4s", self.buffer[self.offset:(self.offset + 8)])
         self.offset += 8

@@ -32,7 +32,7 @@ import numpy as np
 import StringIO
 
 import libardrone
-
+import time
 
 class ARDroneNetworkProcess(multiprocessing.Process):
     """ARDrone Network Process.
@@ -69,6 +69,11 @@ class ARDroneNetworkProcess(multiprocessing.Process):
         nav_socket.bind(('', libardrone.ARDRONE_NAVDATA_PORT))
         nav_socket.sendto("\x01\x00\x00\x00", ('192.168.1.1', libardrone.ARDRONE_NAVDATA_PORT))
 
+        control_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        control_socket.connect(('192.168.1.1', libardrone.ARDRONE_CONTROL_PORT))
+        print "Connected to control port"
+        control_socket.setblocking(0)
+
         stopping = False
         #loop receiving data and calculate bit rate
         import time
@@ -76,33 +81,34 @@ class ARDroneNetworkProcess(multiprocessing.Process):
         bitrate = 0.0
         data_bits = 0.0
         while not stopping:
-            inputready, outputready, exceptready = select.select([nav_socket, video_socket, self.com_pipe], [], [])
+            #time.sleep(.0001)
+            #print "Waiting for network intput at time ", time.time()
+            inputready, outputready, exceptready = select.select([nav_socket, video_socket, self.com_pipe, control_socket], [], [])
             for i in inputready:
                 if i == video_socket:
                     while 1:
                         try:
-                            #data = video_socket.recv(65535)
-                            data = video_socket.recv(65535)
-                            #calculate average bit rate in Mbps
+                            data = video_socket.recv(4096)
                             data_bits += len(data) * 8.0
                             timediff = time.time() - start
+                            if self.is_ar_drone_2:
+                                self.ar2video.write(data)
                             if timediff > 0.0:
                                 bitrate = (data_bits / timediff) / 1000000
-                            #print "bitrate=", bitrate
+                                print bitrate
                         except IOError:
                             # we consumed every packet from the socket and
                             # continue with the last one
                             break
-                    if self.is_ar_drone_2:
-                        self.ar2video.write(data)
                         # Sending is taken care of by the decoder
-                    else:
+                    if not self.is_ar_drone_2:
                         w, h, image, t = arvideo.read_picture(data)
                         self.video_pipe.send(image)
                 elif i == nav_socket:
+                    #print "Navigation socket"
                     while 1:
                         try:
-                            data = nav_socket.recv(65535)
+                            data = nav_socket.recv(4096)
                         except IOError:
                             # we consumed every packet from the socket and
                             # continue with the last one
@@ -113,6 +119,16 @@ class ARDroneNetworkProcess(multiprocessing.Process):
                     _ = self.com_pipe.recv()
                     stopping = True
                     break
+                elif i == control_socket:
+
+                    print "Control socket: "
+                    while 1:
+
+                        try:
+                            data = control_socket.recv(4096)
+                            print "Control Socket says ", data
+                        except IOError:
+                            break
         video_socket.close()
         nav_socket.close()
 
@@ -130,13 +146,14 @@ class IPCThread(threading.Thread):
 
     def run(self):
         while not self.stopping:
+            #time.sleep(.0001)
             inputready, outputready, exceptready = select.select([self.drone.video_pipe, self.drone.nav_pipe], [], [], 1)
             for i in inputready:
                 if i == self.drone.video_pipe:
                     while self.drone.video_pipe.poll():
                         image = self.drone.video_pipe.recv()
-                    self.drone.image = np.array(Image.open(
-                        StringIO.StringIO(image)))
+                    _image = Image.open(StringIO.StringIO(image))
+                    self.drone.image = np.asarray(_image)
                 elif i == self.drone.nav_pipe:
                     while self.drone.nav_pipe.poll():
                         navdata = self.drone.nav_pipe.recv()
@@ -145,4 +162,3 @@ class IPCThread(threading.Thread):
     def stop(self):
         """Stop the IPCThread activity."""
         self.stopping = True
-
