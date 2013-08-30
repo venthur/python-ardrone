@@ -30,18 +30,19 @@ This is just H.264 encapsulated in a funny way.
 
 import h264decoder
 import pngsplitter
+import ppmsplitter
 import paveparser
 import Image
 import time
 
 class ARVideo2(object):
-    def __init__(self, video_pipe=None):
-        DEBUG = True
+    def __init__(self, video_pipe=None, debug=False):
 
-        if (DEBUG):
+        if (debug):
             self.h264 = h264decoder.H264ToPNG(None)
         else:
             self.pngsplit = pngsplitter.PNGSplitter(self)
+            #self.pngsplit = ppmsplitter.PPMSplitter(self)
             self.h264 = h264decoder.H264ToPNG(self.pngsplit)
         self.paveparser = paveparser.PaVEParser(self.h264)
         self.latest_image = None

@@ -49,6 +49,7 @@ SESSION_ID = "943dac23"
 USER_ID = "36355d78"
 APP_ID = "21d958e4"
 
+DEBUG = False
 
 class ARDrone(object):
     """ARDrone Class.
@@ -126,7 +127,7 @@ class ARDrone(object):
             time.sleep(0.5)
 
             self.at(at_config_ids , self.config_ids_string)
-            self.at(at_config, "video:video_codec", 0x85)
+            self.at(at_config, "video:video_codec", 0x81)
             time.sleep(0.5)
 
 
@@ -407,6 +408,7 @@ def f2i(f):
 ### navdata
 ###############################################################################
 def decode_navdata(packet):
+    return
     """Decode a navdata packet."""
     offset = 0
     _ = struct.unpack_from("IIII", packet, offset)
@@ -485,19 +487,20 @@ if __name__ == "__main__":
     fcntl.fcntl(fd, fcntl.F_SETFL, oldflags | os.O_NONBLOCK)
 
     drone = ARDrone(is_ar_drone_2=True)
-    time.sleep(10000)
+    #time.sleep(10000)
     import cv2
     import numpy as np
     try:
         startvideo = False
         while 1:
-            time.sleep(.01)
+            time.sleep(.0001)
             if startvideo:
                 try:
-                    im = cv2.cvtColor(np.copy(drone.image), cv2.COLOR_BGR2RGB)
-                    cv2.imshow("Drone camera", im)
-                    cv2.waitKey(2)
+                    print "Trying to display camera"
+                    cv2.imshow("Drone camera", drone.image)
+                    cv2.waitKey(1)
                 except:
+                    print "Got an error"
                     pass
 
             try:
@@ -533,13 +536,31 @@ if __name__ == "__main__":
                 if c == 'y':
                     drone.trim()
                 if c == 'i':
-                    #startvideo = True
-                    print 'Emergency landing =', drone.navdata['drone_state']['emergency_mask']
-                    print 'User emergency landing = ', drone.navdata['drone_state']['user_el']
-                    print 'Navdata type= ', drone.navdata['drone_state']['navdata_demo_mask']
-                    print 'Altitude= ', drone.navdata[0]['altitude']
-                    print 'video enable= ', drone.navdata['drone_state']['video_mask']
-                    print 'vision enable= ', drone.navdata['drone_state']['vision_mask']
+                    startvideo = True
+                    try:
+
+                        print 'Emergency landing =', drone.navdata['drone_state']['emergency_mask']
+                        print 'User emergency landing = ', drone.navdata['drone_state']['user_el']
+                        print 'Navdata type= ', drone.navdata['drone_state']['navdata_demo_mask']
+                        print 'Altitude= ', drone.navdata[0]['altitude']
+                        print 'video enable= ', drone.navdata['drone_state']['video_mask']
+                        print 'vision enable= ', drone.navdata['drone_state']['vision_mask']
+                        print 'command_mask= ', drone.navdata['drone_state']['command_mask']
+
+                    except:
+                        pass
+#                    drone.at(at_ctrl, 5)
+#                    time.sleep(0.5)
+#                    drone.at(at_config_ids, drone.config_ids_string)
+#                    time.sleep(0.5)
+#                    drone.at(at_config, "general:video_enable", "TRUE")
+#                    time.sleep(0.5)
+#                    drone.at(at_ctrl, 5)
+#                    time.sleep(0.5)
+#                    drone.at(at_config_ids, drone.config_ids_string)
+#                    time.sleep(0.5)
+#                    drone.at(at_config, "general:vision_enable", "TRUE")
+
                 if c == 'j':
                     print "Asking for configuration..."
                     drone.at(at_ctrl, 5)

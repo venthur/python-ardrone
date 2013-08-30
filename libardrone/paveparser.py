@@ -90,7 +90,7 @@ class PaVEParser(object):
 
     def handle_misalignment(self):
         """Sometimes we start of in the middle of frame - look for the PaVE header."""
-
+        print "Missaligned frame"
         IFrame = False
         if self.align_on_iframe:
             while (not IFrame):

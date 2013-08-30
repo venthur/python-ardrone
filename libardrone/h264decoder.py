@@ -36,13 +36,10 @@ except ImportError:
 
 ON_POSIX = 'posix' in sys.builtin_module_names
 
-def enqueue_output(out, queue, outfileobject):
+def enqueue_output(out, outfileobject):
     while True:
-        inittime = time.time()
-        r = out.read(50000)
-        #print 'reading enqueue output in ', time.time() - inittime
+        r = out.read(65536) # was good with 50000
         outfileobject.write(r)
-        time.sleep(0.0001)
 
 """
 Usage: pass a listener, with a method 'data_ready' which will be called whenever there's output
@@ -53,13 +50,14 @@ You should then call write repeatedly to write some encoded H.264 data.
 class H264ToPNG(object):
     def __init__(self, outfileobject=None):
         if outfileobject is not None:
-            p = Popen(["ffmpeg", "-i", "-", "-r", "24", "-f", "image2pipe", "-vcodec", "png", "-"], stdin=PIPE, stdout=PIPE, stderr=open('/dev/null', 'w'))
-            self.q = Queue()
-            t = Thread(target=enqueue_output, args=(p.stdout, self.q, outfileobject))
+            #p = Popen(["nice", "-n", "15", "ffmpeg", "-i", "-", "-f", "sdl", "-flags", "low_delay", "-f", "image2pipe", "-vcodec", "png", "-"], stdin=PIPE, stdout=PIPE, stderr=open('/dev/null', 'w'))
+            p = Popen(["nice", "-n", "15", "ffmpeg", "-i", "-", "-f", "sdl", "-flags", "low_delay", "-f", "image2pipe", "-vcodec", "ppm", "test.ppm"], stdin=PIPE, stdout=PIPE, stderr=open('/dev/null', 'w'))
+            t = Thread(target=enqueue_output, args=(p.stdout, outfileobject))
             t.daemon = True # thread dies with the program
             t.start()
         else:
-            p = Popen(["nice", "-n", "15", "ffplay", "-i", "-"], stdin=PIPE)
+            p = Popen(["nice", "-n", "15", "ffplay", "-probesize", "2048", "-flags", "low_delay", "-i", "-"], stdin=PIPE)
+
         self.writefd = p.stdin
 
     def write(self, data):

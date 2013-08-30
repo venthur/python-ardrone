@@ -49,7 +49,7 @@ class ARDroneNetworkProcess(multiprocessing.Process):
         self.is_ar_drone_2 = is_ar_drone_2
         if is_ar_drone_2:
             import ar2video
-            self.ar2video = ar2video.ARVideo2(self.video_pipe)
+            self.ar2video = ar2video.ARVideo2(self.video_pipe, libardrone.DEBUG)
         else:
             import arvideo
 
@@ -109,6 +109,7 @@ class ARDroneNetworkProcess(multiprocessing.Process):
                     while 1:
                         try:
                             data = nav_socket.recv(4096)
+                            #print "size of data ", len(data)
                         except IOError:
                             # we consumed every packet from the socket and
                             # continue with the last one
@@ -120,10 +121,8 @@ class ARDroneNetworkProcess(multiprocessing.Process):
                     stopping = True
                     break
                 elif i == control_socket:
-
-                    print "Control socket: "
+                    #print "Control socket: "
                     while 1:
-
                         try:
                             data = control_socket.recv(4096)
                             print "Control Socket says ", data
