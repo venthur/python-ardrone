@@ -42,7 +42,6 @@ class ARVideo2(object):
             self.h264 = h264decoder.H264ToPNG(None)
         else:
             if (_format == "ppm"):
-                print "Encoding in png"
                 self.pngsplit = ppmsplitter.PPMSplitter(self)
             elif (_format == "png"):
                 self.pngsplit = pngsplitter.PNGSplitter(self)
