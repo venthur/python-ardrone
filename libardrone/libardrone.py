@@ -49,7 +49,7 @@ SESSION_ID = "943dac23"
 USER_ID = "36355d78"
 APP_ID = "21d958e4"
 
-DEBUG = False
+DEBUG = True
 IMAGE_ENCODING = "ppm"
 
 class ARDrone(object):

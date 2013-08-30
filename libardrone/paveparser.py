@@ -41,7 +41,7 @@ class PaVEParser(object):
         self.outfileobject = outfileobject
         self.misaligned_frames = 0
         self.payloads = 0
-        self.drop_old_frames = True
+        self.drop_old_frames = False
         self.align_on_iframe = False
 
     def write(self, data):
