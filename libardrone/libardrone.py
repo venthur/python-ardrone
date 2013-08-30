@@ -50,6 +50,7 @@ USER_ID = "36355d78"
 APP_ID = "21d958e4"
 
 DEBUG = False
+IMAGE_ENCODING = "ppm"
 
 class ARDrone(object):
     """ARDrone Class.
@@ -408,7 +409,6 @@ def f2i(f):
 ### navdata
 ###############################################################################
 def decode_navdata(packet):
-    return
     """Decode a navdata packet."""
     offset = 0
     _ = struct.unpack_from("IIII", packet, offset)
@@ -487,7 +487,6 @@ if __name__ == "__main__":
     fcntl.fcntl(fd, fcntl.F_SETFL, oldflags | os.O_NONBLOCK)
 
     drone = ARDrone(is_ar_drone_2=True)
-    #time.sleep(10000)
     import cv2
     import numpy as np
     try:
@@ -549,17 +548,6 @@ if __name__ == "__main__":
 
                     except:
                         pass
-#                    drone.at(at_ctrl, 5)
-#                    time.sleep(0.5)
-#                    drone.at(at_config_ids, drone.config_ids_string)
-#                    time.sleep(0.5)
-#                    drone.at(at_config, "general:video_enable", "TRUE")
-#                    time.sleep(0.5)
-#                    drone.at(at_ctrl, 5)
-#                    time.sleep(0.5)
-#                    drone.at(at_config_ids, drone.config_ids_string)
-#                    time.sleep(0.5)
-#                    drone.at(at_config, "general:vision_enable", "TRUE")
 
                 if c == 'j':
                     print "Asking for configuration..."

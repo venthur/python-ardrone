@@ -49,7 +49,7 @@ class ARDroneNetworkProcess(multiprocessing.Process):
         self.is_ar_drone_2 = is_ar_drone_2
         if is_ar_drone_2:
             import ar2video
-            self.ar2video = ar2video.ARVideo2(self.video_pipe, libardrone.DEBUG)
+            self.ar2video = ar2video.ARVideo2(self.video_pipe, libardrone.DEBUG, libardrone.IMAGE_ENCODING)
         else:
             import arvideo
 

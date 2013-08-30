@@ -29,6 +29,7 @@ import sys
 from subprocess import PIPE, Popen
 from threading  import Thread
 import time
+import libardrone
 try:
     from Queue import Queue, Empty
 except ImportError:
@@ -50,8 +51,7 @@ You should then call write repeatedly to write some encoded H.264 data.
 class H264ToPNG(object):
     def __init__(self, outfileobject=None):
         if outfileobject is not None:
-            #p = Popen(["nice", "-n", "15", "ffmpeg", "-i", "-", "-f", "sdl", "-flags", "low_delay", "-f", "image2pipe", "-vcodec", "png", "-"], stdin=PIPE, stdout=PIPE, stderr=open('/dev/null', 'w'))
-            p = Popen(["nice", "-n", "15", "ffmpeg", "-i", "-", "-f", "sdl", "-flags", "low_delay", "-f", "image2pipe", "-vcodec", "ppm", "test.ppm"], stdin=PIPE, stdout=PIPE, stderr=open('/dev/null', 'w'))
+            p = Popen(["nice", "-n", "15", "ffmpeg", "-i", "-", "-f", "sdl", "-flags", "low_delay", "-f", "image2pipe", "-vcodec", libardrone.IMAGE_ENCODING, "-"], stdin=PIPE, stdout=PIPE, stderr=open('/dev/null', 'w'))
             t = Thread(target=enqueue_output, args=(p.stdout, outfileobject))
             t.daemon = True # thread dies with the program
             t.start()

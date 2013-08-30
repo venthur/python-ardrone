@@ -36,13 +36,18 @@ import Image
 import time
 
 class ARVideo2(object):
-    def __init__(self, video_pipe=None, debug=False):
+    def __init__(self, video_pipe=None, debug=False, _format="png"):
 
         if (debug):
             self.h264 = h264decoder.H264ToPNG(None)
         else:
-            self.pngsplit = pngsplitter.PNGSplitter(self)
-            #self.pngsplit = ppmsplitter.PPMSplitter(self)
+            if (_format == "ppm"):
+                print "Encoding in png"
+                self.pngsplit = ppmsplitter.PPMSplitter(self)
+            elif (_format == "png"):
+                self.pngsplit = pngsplitter.PNGSplitter(self)
+            else:
+                raise Exception("Not supported format ", _format)
             self.h264 = h264decoder.H264ToPNG(self.pngsplit)
         self.paveparser = paveparser.PaVEParser(self.h264)
         self.latest_image = None
