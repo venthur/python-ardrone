@@ -37,19 +37,9 @@ def f2i(f):
 
 if __name__ == '__main__':
     nav_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
-    # That
     nav_socket.connect((DRONE_IP, ARDRONE_NAVDATA_PORT))
     nav_socket.setblocking(0)
     nav_socket.send("\x01\x00\x00\x00")
-    # or that...
-    nav_socket.setblocking(0)
-    nav_socket.bind(('', ARDRONE_NAVDATA_PORT))
-    nav_socket.sendto("\x01\x00\x00\x00", ('192.168.1.1', ARDRONE_NAVDATA_PORT))
-
-    #nav_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
-    #nav_socket.connect((DRONE_IP, ARDRONE_NAVDATA_PORT))
-    #nav_socket.settimeout(1)
-    #nav_socket.send("\x01\x00\x00\x00")
 
     seq = 1
     stopping = False
@@ -65,6 +55,5 @@ if __name__ == '__main__':
                     data = nav_socket.recv(500)
                 except IOError:
                     break
-                print time.time(), " ", len(data)
 
     raise Exception("Should not get here")
