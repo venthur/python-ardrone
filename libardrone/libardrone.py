@@ -17,6 +17,8 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
+import copy
+
 
 
 """
@@ -34,8 +36,11 @@ import threading
 import multiprocessing
 
 import arnetwork
+import arnetwork2
 
 import time
+import numpy as np
+from mutex import mutex
 
 __author__ = "Bastian Venthur"
 
@@ -139,11 +144,17 @@ class ARDrone(object):
         self.network_process = arnetwork.ARDroneNetworkProcess(nav_pipe_other, video_pipe_other, com_pipe_other, is_ar_drone_2)
         self.network_process.start()
 
-        self.ipc_thread = arnetwork.IPCThread(self)
-        self.ipc_thread.start()
+        #self.network_process = arnetwork2.ARDroneNetworkProcess(nav_pipe_other, video_pipe_other, com_pipe_other, is_ar_drone_2, self)
+        #self.network_process.run()
 
-        self.image = ""
+        ipc_thread = True
+        if ipc_thread:
+            self.ipc_thread = arnetwork.IPCThread(self)
+            self.ipc_thread.start()
+
+        self.image = np.zeros((100, 100))
         self.navdata = dict()
+
         self.time = 0
 
 
@@ -250,6 +261,29 @@ class ARDrone(object):
         self.ipc_thread.join()
         self.lock.release()
 
+    def get_image(self):
+        self.lock.acquire()
+        _im = np.copy(self.image)
+        self.lock.release()
+        return _im
+
+    def get_navdata(self):
+        self.lock.acquire()
+        _navdata = copy.deepcopy(self.navdata)
+        self.lock.release()
+        return _navdata
+
+    def set_navdata(self, _navdata):
+        #print "Setting navdata"
+        self.lock.acquire()
+        self.navdata = _navdata
+        self.lock.release()
+
+    def set_image(self, _image):
+        #print "Setting image"
+        self.lock.acquire()
+        self.image = np.asarray(_image)
+        self.lock.release()
 
 ###############################################################################
 ### Low level AT Commands
@@ -487,19 +521,17 @@ if __name__ == "__main__":
     fcntl.fcntl(fd, fcntl.F_SETFL, oldflags | os.O_NONBLOCK)
 
     drone = ARDrone(is_ar_drone_2=True)
+
     import cv2
-    import numpy as np
     try:
         startvideo = False
         while 1:
             time.sleep(.0001)
             if startvideo:
                 try:
-                    print "Trying to display camera"
-                    cv2.imshow("Drone camera", drone.image)
+                    cv2.imshow("Drone camera", cv2.cvtColor(drone.get_image(), cv2.COLOR_BGR2RGB))
                     cv2.waitKey(1)
                 except:
-                    print "Got an error"
                     pass
 
             try:
@@ -537,14 +569,15 @@ if __name__ == "__main__":
                 if c == 'i':
                     startvideo = True
                     try:
+                        navdata = drone.get_navdata()
 
-                        print 'Emergency landing =', drone.navdata['drone_state']['emergency_mask']
-                        print 'User emergency landing = ', drone.navdata['drone_state']['user_el']
-                        print 'Navdata type= ', drone.navdata['drone_state']['navdata_demo_mask']
-                        print 'Altitude= ', drone.navdata[0]['altitude']
-                        print 'video enable= ', drone.navdata['drone_state']['video_mask']
-                        print 'vision enable= ', drone.navdata['drone_state']['vision_mask']
-                        print 'command_mask= ', drone.navdata['drone_state']['command_mask']
+                        print 'Emergency landing =', navdata['drone_state']['emergency_mask']
+                        print 'User emergency landing = ', navdata['drone_state']['user_el']
+                        print 'Navdata type= ', navdata['drone_state']['navdata_demo_mask']
+                        print 'Altitude= ', navdata[0]['altitude']
+                        print 'video enable= ', navdata['drone_state']['video_mask']
+                        print 'vision enable= ', navdata['drone_state']['vision_mask']
+                        print 'command_mask= ', navdata['drone_state']['command_mask']
 
                     except:
                         pass

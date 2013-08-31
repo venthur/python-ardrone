@@ -83,7 +83,7 @@ class ARDroneNetworkProcess(multiprocessing.Process):
         while not stopping:
             #time.sleep(.0001)
             #print "Waiting for network intput at time ", time.time()
-            inputready, outputready, exceptready = select.select([nav_socket, video_socket, self.com_pipe, control_socket], [], [])
+            inputready, outputready, exceptready = select.select([nav_socket, video_socket, self.com_pipe, control_socket], [], [], 10)
             for i in inputready:
                 if i == video_socket:
                     while 1:
@@ -95,7 +95,6 @@ class ARDroneNetworkProcess(multiprocessing.Process):
                                 self.ar2video.write(data)
                             if timediff > 0.0:
                                 bitrate = (data_bits / timediff) / 1000000
-                                print bitrate
                         except IOError:
                             # we consumed every packet from the socket and
                             # continue with the last one
@@ -105,11 +104,9 @@ class ARDroneNetworkProcess(multiprocessing.Process):
                         w, h, image, t = arvideo.read_picture(data)
                         self.video_pipe.send(image)
                 elif i == nav_socket:
-                    #print "Navigation socket"
                     while 1:
                         try:
-                            data = nav_socket.recv(4096)
-                            #print "size of data ", len(data)
+                            data = nav_socket.recv(500)
                         except IOError:
                             # we consumed every packet from the socket and
                             # continue with the last one
@@ -121,16 +118,14 @@ class ARDroneNetworkProcess(multiprocessing.Process):
                     stopping = True
                     break
                 elif i == control_socket:
-                    #print "Control socket: "
                     while 1:
                         try:
                             data = control_socket.recv(4096)
-                            print "Control Socket says ", data
+                            print "Control Socket says ", data, " size ", len(data)
                         except IOError:
                             break
         video_socket.close()
         nav_socket.close()
-
 
 class IPCThread(threading.Thread):
     """
@@ -145,18 +140,17 @@ class IPCThread(threading.Thread):
 
     def run(self):
         while not self.stopping:
-            #time.sleep(.0001)
             inputready, outputready, exceptready = select.select([self.drone.video_pipe, self.drone.nav_pipe], [], [], 1)
             for i in inputready:
                 if i == self.drone.video_pipe:
                     while self.drone.video_pipe.poll():
                         image = self.drone.video_pipe.recv()
                     _image = Image.open(StringIO.StringIO(image))
-                    self.drone.image = np.asarray(_image)
+                    self.drone.set_image(_image)
                 elif i == self.drone.nav_pipe:
                     while self.drone.nav_pipe.poll():
-                        navdata = self.drone.nav_pipe.recv()
-                    self.drone.navdata = navdata
+                        _navdata = self.drone.nav_pipe.recv()
+                    self.drone.set_navdata(_navdata)
 
     def stop(self):
         """Stop the IPCThread activity."""

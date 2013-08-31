@@ -39,7 +39,7 @@ ON_POSIX = 'posix' in sys.builtin_module_names
 
 def enqueue_output(out, outfileobject):
     while True:
-        r = out.read(65536) # was good with 50000
+        r = out.read(65536)
         outfileobject.write(r)
 
 """
@@ -51,14 +51,14 @@ You should then call write repeatedly to write some encoded H.264 data.
 class H264ToPNG(object):
     def __init__(self, outfileobject=None):
         if outfileobject is not None:
-            p = Popen(["nice", "-n", "15", "ffmpeg", "-i", "-", "-f", "sdl", "-flags", "low_delay", "-f", "image2pipe", "-vcodec", libardrone.IMAGE_ENCODING, "-"], stdin=PIPE, stdout=PIPE, stderr=open('/dev/null', 'w'))
+            p = Popen(["nice", "-n", "15", "ffmpeg", "-i", "-", "-f", "sdl", "-probesize", "2048", "-flags", "low_delay", "-f", "image2pipe", "-vcodec", libardrone.IMAGE_ENCODING, "-"], stdin=PIPE, stdout=PIPE, stderr=open('/dev/null', 'w'))
             t = Thread(target=enqueue_output, args=(p.stdout, outfileobject))
             t.daemon = True # thread dies with the program
             t.start()
         else:
-            p = Popen(["nice", "-n", "15", "ffplay", "-probesize", "2048", "-flags", "low_delay", "-i", "-"], stdin=PIPE)
+            p = Popen(["nice", "-n", "15", "ffplay", "-probesize", "2048", "-flags", "low_delay", "-i", "-"], stdin=PIPE, stdout=open('/dev/null', 'w'), stderr=open('/dev/null', 'w'))
 
         self.writefd = p.stdin
 
     def write(self, data):
-            self.writefd.write(data)
+        self.writefd.write(data)

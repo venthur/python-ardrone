@@ -41,8 +41,11 @@ class PaVEParser(object):
         self.outfileobject = outfileobject
         self.misaligned_frames = 0
         self.payloads = 0
-        self.drop_old_frames = False
-        self.align_on_iframe = False
+        self.drop_old_frames = True
+        self.align_on_iframe = True
+
+        if self.drop_old_frames:
+            self.state = self.handle_header_drop_frames
 
     def write(self, data):
         self.buffer += data
@@ -54,26 +57,6 @@ class PaVEParser(object):
     def handle_header(self):
         if self.fewer_remaining_than(self.HEADER_SIZE_SHORT):
             return False
-
-        #Optimization to drop old frames
-        if (self.drop_old_frames):
-            index = self.buffer.rfind('PaVE')
-            _buffer = self.buffer
-            _old_buffers = ""
-
-            while index > 0:
-                _buffer = self.buffer[index:]
-                frame_type = -1
-                if (len(_buffer) >= self.HEADER_SIZE_SHORT):
-                    (_, _, _, _, _, _, _, _, _, _, _, _, _,
-                     frame_type, _, _, _, _, _, _, _, _, _, _, _) = struct.unpack("<4sBBHIHHHHIIBBBBIIHBBBB2sI12s", _buffer[0:self.HEADER_SIZE_SHORT])
-                if (frame_type == 1 or frame_type == 2):
-                    index = 0
-                    self.buffer = _buffer + _old_buffers
-                else:
-                    _old_buffers = _buffer + _old_buffers
-                    _buffer = self.buffer[0:index]
-                    index = _buffer.rfind('PaVE')
 
         #Second call might be avoided, to be optimize if necessary
         (signature, version, video_codec, header_size, self.payload_size, encoded_stream_width,
@@ -88,9 +71,44 @@ class PaVEParser(object):
         self.state = self.handle_payload
         return True
 
+    def handle_header_drop_frames(self):
+
+        eligible_index = self.buffer.find('PaVE')
+
+        if (eligible_index < 0):
+            return False
+        self.buffer = self.buffer[eligible_index:]
+
+        if self.fewer_remaining_than(self.HEADER_SIZE_SHORT):
+            return False
+
+        eligible_index = 0
+        current_index = eligible_index
+
+        while current_index != -1 and len(self.buffer[current_index:]) > self.HEADER_SIZE_SHORT:
+            (signature, version, video_codec, header_size, payload_size, encoded_stream_width,
+                encoded_stream_height, display_width, display_height, frame_number, timestamp, total_chunks,
+                chunk_index, frame_type, control, stream_byte_position_lw, stream_byte_position_uw,
+                stream_id, total_slices, slice_index, header1_size,
+                header2_size, reserved2, advertised_size, reserved3) = struct.unpack("<4sBBHIHHHHIIBBBBIIHBBBB2sI12s", self.buffer[current_index:current_index + self.HEADER_SIZE_SHORT])
+
+            if (frame_type != 3 or current_index == 0):
+                eligible_index = current_index
+                self.payload_size = payload_size
+
+            offset = self.buffer[current_index + 1:].find('PaVE') + 1
+            if (offset == 0):
+                break
+
+            current_index += offset
+
+        self.buffer = self.buffer[eligible_index + header_size:]
+        self.state = self.handle_payload
+        return True
+
+
     def handle_misalignment(self):
         """Sometimes we start of in the middle of frame - look for the PaVE header."""
-        print "Missaligned frame"
         IFrame = False
         if self.align_on_iframe:
             while (not IFrame):
@@ -126,6 +144,9 @@ class PaVEParser(object):
         if self.fewer_remaining_than(self.payload_size):
             return False
         self.state = self.handle_header
+        if self.drop_old_frames:
+            self.state = self.handle_header_drop_frames
+
         self.outfileobject.write(self.buffer[0:self.payload_size])
         self.buffer = self.buffer[self.payload_size:]
         self.payloads += 1
