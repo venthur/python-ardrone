@@ -18,6 +18,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 import copy
+import logging
 
 
 
@@ -101,7 +102,7 @@ class ARDrone(object):
             time.sleep(0.5)
             self.at(at_config, "general:video_enable", "TRUE")
             time.sleep(0.5)
-            print "Waiting 1s and sending request for controls"
+            logging.info("Waiting 1s and sending request for controls")
             time.sleep(0.5)
 
             self.at(at_config_ids , self.config_ids_string)
@@ -274,13 +275,11 @@ class ARDrone(object):
         return _navdata
 
     def set_navdata(self, _navdata):
-        #print "Setting navdata"
         self.lock.acquire()
         self.navdata = _navdata
         self.lock.release()
 
     def set_image(self, _image):
-        #print "Setting image"
         self.lock.acquire()
         self.image = np.asarray(_image)
         self.lock.release()
@@ -427,7 +426,6 @@ def at(command, seq, params):
         elif type(p) == str:
             param_str += ',"' + p + '"'
     msg = "AT*%s=%i%s\r" % (command, seq, param_str)
-    print msg
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.sendto(msg, ("192.168.1.1", ARDRONE_COMMAND_PORT))
 
@@ -525,6 +523,7 @@ if __name__ == "__main__":
     import cv2
     try:
         startvideo = False
+        video_waiting = False
         while 1:
             time.sleep(.0001)
             if startvideo:
@@ -532,6 +531,9 @@ if __name__ == "__main__":
                     cv2.imshow("Drone camera", cv2.cvtColor(drone.get_image(), cv2.COLOR_BGR2RGB))
                     cv2.waitKey(1)
                 except:
+                    if not video_waiting:
+                        print "Video will display when ready"
+                    video_waiting = True
                     pass
 
             try:

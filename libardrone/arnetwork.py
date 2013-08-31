@@ -17,6 +17,7 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
+import logging
 
 
 """
@@ -71,7 +72,6 @@ class ARDroneNetworkProcess(multiprocessing.Process):
 
         control_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         control_socket.connect(('192.168.1.1', libardrone.ARDRONE_CONTROL_PORT))
-        print "Connected to control port"
         control_socket.setblocking(0)
 
         stopping = False
@@ -81,8 +81,6 @@ class ARDroneNetworkProcess(multiprocessing.Process):
         bitrate = 0.0
         data_bits = 0.0
         while not stopping:
-            #time.sleep(.0001)
-            #print "Waiting for network intput at time ", time.time()
             inputready, outputready, exceptready = select.select([nav_socket, video_socket, self.com_pipe, control_socket], [], [], 10)
             for i in inputready:
                 if i == video_socket:
@@ -121,7 +119,7 @@ class ARDroneNetworkProcess(multiprocessing.Process):
                     while 1:
                         try:
                             data = control_socket.recv(4096)
-                            print "Control Socket says ", data, " size ", len(data)
+                            logging.warning("Control Socket says : %s", data)
                         except IOError:
                             break
         video_socket.close()
