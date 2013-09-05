@@ -262,26 +262,18 @@ class ARDrone(object):
         self.lock.release()
 
     def get_image(self):
-        self.lock.acquire()
         _im = np.copy(self.image)
-        self.lock.release()
         return _im
 
     def get_navdata(self):
-        self.lock.acquire()
         _navdata = copy.deepcopy(self.navdata)
-        self.lock.release()
         return _navdata
 
     def set_navdata(self, _navdata):
-        self.lock.acquire()
         self.navdata = _navdata
-        self.lock.release()
 
     def set_image(self, _image):
-        self.lock.acquire()
         self.image = np.asarray(_image)
-        self.lock.release()
 
     def apply_command(self, command):
         available_commands = ["emergency",
