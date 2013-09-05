@@ -30,13 +30,22 @@ This is just H.264 encapsulated in a funny way.
 
 import h264decoder
 import pngsplitter
+import ppmsplitter
 import paveparser
-import Image
 
 class ARVideo2(object):
-    def __init__(self, video_pipe = None):
-        self.pngsplit = pngsplitter.PNGSplitter(self)
-        self.h264 = h264decoder.H264ToPNG(self.pngsplit)
+    def __init__(self, video_pipe=None, debug=False, _format="png"):
+
+        if (debug):
+            self.h264 = h264decoder.H264ToPNG(None)
+        else:
+            if (_format == "ppm"):
+                self.pngsplit = ppmsplitter.PPMSplitter(self)
+            elif (_format == "png"):
+                self.pngsplit = pngsplitter.PNGSplitter(self)
+            else:
+                raise Exception("Not supported format ", _format)
+            self.h264 = h264decoder.H264ToPNG(self.pngsplit)
         self.paveparser = paveparser.PaVEParser(self.h264)
         self.latest_image = None
         self.video_pipe = video_pipe

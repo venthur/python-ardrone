@@ -15,3 +15,6 @@ def test_misalignment():
 
     assert outfile.write.called
     assert p.misaligned_frames < 3
+
+if __name__ == "__main__":
+    test_misalignment()

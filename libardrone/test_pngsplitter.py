@@ -1,4 +1,3 @@
-import paveparser
 import mock
 import pngsplitter
 import os

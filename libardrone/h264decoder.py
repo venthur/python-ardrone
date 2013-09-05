@@ -28,16 +28,18 @@ H.264 video decoder for AR.Drone 2.0. Uses ffmpeg.
 import sys
 from subprocess import PIPE, Popen
 from threading  import Thread
+import time
+import libardrone
 try:
     from Queue import Queue, Empty
 except ImportError:
-	from queue import Queue, Empty  # python 3.x
+    from queue import Queue, Empty  # python 3.x
 
 ON_POSIX = 'posix' in sys.builtin_module_names
 
-def enqueue_output(out, queue, outfileobject):
+def enqueue_output(out, outfileobject):
     while True:
-        r = out.read(100)
+        r = out.read(65536)
         outfileobject.write(r)
 
 """
@@ -47,13 +49,22 @@ said data.
 You should then call write repeatedly to write some encoded H.264 data.
 """
 class H264ToPNG(object):
-	def __init__(self, outfileobject):
-		p = Popen(["ffmpeg", "-i", "-", "-f", "image2pipe", "-vcodec", "png", "-r", "5", "-"], stdin=PIPE, stdout=PIPE, stderr=open('/dev/null', 'w'))
-		self.writefd = p.stdin
-		self.q = Queue()
-		t = Thread(target=enqueue_output, args=(p.stdout, self.q, outfileobject))
-		t.daemon = True # thread dies with the program
-		t.start()
+    def __init__(self, outfileobject=None):
+        if outfileobject is not None:
+            p = Popen(["nice", "-n", "15", "ffmpeg", "-i", "-", "-f", "sdl",
+                       "-probesize", "2048", "-flags", "low_delay", "-f",
+                       "image2pipe", "-vcodec", libardrone.IMAGE_ENCODING, "-"],
+                      stdin=PIPE, stdout=PIPE, stderr=open('/dev/null', 'w'))
+            t = Thread(target=enqueue_output, args=(p.stdout, outfileobject))
+            t.daemon = True # thread dies with the program
+            t.start()
+        else:
+            p = Popen(["nice", "-n", "15", "ffplay", "-probesize", "2048",
+                       "-flags", "low_delay", "-i", "-"],
+                      stdin=PIPE, stdout=open('/dev/null', 'w'),
+                      stderr=open('/dev/null', 'w'))
 
-	def write(self, data):
-            self.writefd.write(data)
+        self.writefd = p.stdin
+
+    def write(self, data):
+        self.writefd.write(data)
