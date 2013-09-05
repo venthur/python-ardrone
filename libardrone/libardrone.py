@@ -535,7 +535,7 @@ def decode_navdata(packet):
         # navdata_tag_t in navdata-common.h
         if id_nr == 0:
             has_flying_information = True
-            values = struct.unpack_from("IIfffffffI", "".join(values))
+            values = struct.unpack_from("IIfffifffI", "".join(values))
             values = dict(zip(['ctrl_state', 'battery', 'theta', 'phi', 'psi', 'altitude', 'vx', 'vy', 'vz', 'num_frames'], values))
             # convert the millidegrees into degrees and round to int, as they
             # are not so precise anyways
