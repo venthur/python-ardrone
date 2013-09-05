@@ -59,6 +59,7 @@ if __name__ == '__main__':
             while 1:
                 try:
                     data = nav_socket.recv(500)
+                    print seq
                 except IOError:
                     break
 

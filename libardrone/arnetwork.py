@@ -116,7 +116,7 @@ class ARDroneNetworkProcess(multiprocessing.Process):
                 elif i == control_socket:
                     while 1:
                         try:
-                            data = control_socket.recv(4096)
+                            data = control_socket.recv(65536)
                             logging.warning("Control Socket says : %s", data)
                         except IOError:
                             break

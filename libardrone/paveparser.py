@@ -57,11 +57,12 @@ class PaVEParser(object):
         if self.fewer_remaining_than(self.HEADER_SIZE_SHORT):
             return False
 
-        #Second call might be avoided, to be optimize if necessary
         (signature, version, video_codec, header_size, self.payload_size, encoded_stream_width,
         encoded_stream_height, display_width, display_height, frame_number, timestamp, total_chunks,
         chunk_index, frame_type, control, stream_byte_position_lw, stream_byte_position_uw,
-        stream_id, total_slices, slice_index, header1_size, header2_size, reserved2, advertised_size, reserved3) = struct.unpack("<4sBBHIHHHHIIBBBBIIHBBBB2sI12s", self.buffer[0:self.HEADER_SIZE_SHORT])
+        stream_id, total_slices, slice_index, header1_size, header2_size,
+        reserved2, advertised_size, reserved3) = struct.unpack("<4sBBHIHHHHIIBBBBIIHBBBB2sI12s",
+                                                               self.buffer[0:self.HEADER_SIZE_SHORT])
 
         if signature != "PaVE":
             self.state = self.handle_misalignment
@@ -89,7 +90,9 @@ class PaVEParser(object):
                 encoded_stream_height, display_width, display_height, frame_number, timestamp, total_chunks,
                 chunk_index, frame_type, control, stream_byte_position_lw, stream_byte_position_uw,
                 stream_id, total_slices, slice_index, header1_size,
-                header2_size, reserved2, advertised_size, reserved3) = struct.unpack("<4sBBHIHHHHIIBBBBIIHBBBB2sI12s", self.buffer[current_index:current_index + self.HEADER_SIZE_SHORT])
+                header2_size, reserved2, advertised_size,
+                reserved3) = struct.unpack("<4sBBHIHHHHIIBBBBIIHBBBB2sI12s",
+                                self.buffer[current_index:current_index + self.HEADER_SIZE_SHORT])
 
             if (frame_type != 3 or current_index == 0):
                 eligible_index = current_index
@@ -123,7 +126,8 @@ class PaVEParser(object):
                 (signature, version, video_codec, header_size, self.payload_size, encoded_stream_width,
                 encoded_stream_height, display_width, display_height, frame_number, timestamp, total_chunks,
                 chunk_index, frame_type, control, stream_byte_position_lw, stream_byte_position_uw,
-                stream_id, total_slices, slice_index, header1_size, header2_size, reserved2, advertised_size, reserved3) = struct.unpack("<4sBBHIHHHHIIBBBBIIHBBBB2sI12s", self.buffer[0:self.HEADER_SIZE_SHORT])
+                stream_id, total_slices, slice_index, header1_size, header2_size, reserved2, advertised_size,
+                reserved3) = struct.unpack("<4sBBHIHHHHIIBBBBIIHBBBB2sI12s", self.buffer[0:self.HEADER_SIZE_SHORT])
 
                 IFrame = (frame_type == 1 or frame_type == 2)
                 if not IFrame:
