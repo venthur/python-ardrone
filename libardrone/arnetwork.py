@@ -109,8 +109,9 @@ class ARDroneNetworkProcess(multiprocessing.Process):
                             # we consumed every packet from the socket and
                             # continue with the last one
                             break
-                    navdata = libardrone.decode_navdata(data)
-                    self.nav_pipe.send(navdata)
+                    navdata, has_information = libardrone.decode_navdata(data)
+                    if (has_information):
+                        self.nav_pipe.send(navdata)
                 elif i == self.com_pipe:
                     _ = self.com_pipe.recv()
                     stopping = True
