@@ -29,11 +29,8 @@ import socket
 import threading
 import multiprocessing
 import Image
-import numpy as np
 import StringIO
-
 import libardrone
-import time
 
 class ARDroneNetworkProcess(multiprocessing.Process):
     """ARDrone Network Process.

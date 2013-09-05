@@ -32,8 +32,6 @@ import h264decoder
 import pngsplitter
 import ppmsplitter
 import paveparser
-import Image
-import time
 
 class ARVideo2(object):
     def __init__(self, video_pipe=None, debug=False, _format="png"):

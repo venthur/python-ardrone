@@ -23,15 +23,6 @@
 
 """
 Splits a stream of PPMs into individual files.
-"""
-
-import Image
-import StringIO
-import struct
-import time
-
-
-"""
 Usage: Call put_data repeatedly. An array of PNG files will be returned each time you call it.
 """
 class PPMSplitter(object):
@@ -41,9 +32,6 @@ class PPMSplitter(object):
         self.offset = 0;
         self.listener       = listener
 
-    """
-    Write some data.
-    """
     def write(self, data):
         self.buffer += data
         index = 1

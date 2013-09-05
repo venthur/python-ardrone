@@ -21,7 +21,6 @@
 # THE SOFTWARE.
 
 import struct
-import time
 """
 The AR Drone 2.0 allows a tcp client to receive H264 (MPEG4.10 AVC) video
 from the drone. However, the frames are wrapped by Parrot Video

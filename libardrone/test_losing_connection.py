@@ -7,6 +7,13 @@ DRONE_IP = "192.168.1.1"
 ARDRONE_NAVDATA_PORT = 5554
 ARDRONE_COMMAND_PORT = 5556
 
+'''
+Small endless loop to test the robustness of the tcp ip connection (video streaming)
+Warning: This test does not stop, it raises an exception when the connection is lost or
+if something goes wrong (most likely the drone stops sending video data and
+send empty packets on the command port...
+'''
+
 def at(command, seq, params):
     """
     Parameters:

@@ -25,8 +25,6 @@
 Splits a stream of PNGs into individual files.
 """
 
-import Image
-import StringIO
 import struct
 import time
 
@@ -50,8 +48,6 @@ class PNGSplitter(object):
     """
     def write(self, data):
         self.data_size += len(data)
-        t = time.time() - self.init_time
-        print "size processed = ", self.data_size / 1000 #, " after ", t
         self.buffer += data
         while True:
             (found_png, made_progress) = self.state()

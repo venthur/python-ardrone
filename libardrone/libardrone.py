@@ -17,11 +17,6 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
-import copy
-import logging
-
-
-
 """
 Python library for the AR.Drone.
 
@@ -29,7 +24,8 @@ V.1 This module was tested with Python 2.6.6 and AR.Drone vanilla firmware 1.5.1
 V.2.alpha
 """
 
-
+import copy
+import logging
 import socket
 import struct
 import sys
@@ -43,7 +39,6 @@ import numpy as np
 from mutex import mutex
 
 __author__ = "Bastian Venthur"
-
 
 ARDRONE_NAVDATA_PORT = 5554
 ARDRONE_VIDEO_PORT = 5555
@@ -89,53 +84,51 @@ class ARDrone(object):
 
         self.at(at_config, "general:navdata_demo", "TRUE")
 
-        if (True):
+        self.at(at_config, "custom:session_id", SESSION_ID)
+        self.at(at_config, "custom:profile_id", USER_ID)
+        self.at(at_config, "custom:application_id", APP_ID)
+        self.at(at_config_ids, self.config_ids_string)
+        time.sleep(0.5)
+        self.at(at_config, "general:navdata_demo", "TRUE")
+        time.sleep(0.5)
+        self.at(at_config_ids, self.config_ids_string)
+        time.sleep(0.5)
+        self.at(at_config, "general:video_enable", "TRUE")
+        time.sleep(0.5)
+        logging.info("Waiting 1s and sending request for controls")
+        time.sleep(0.5)
 
-            self.at(at_config, "custom:session_id", SESSION_ID)
-            self.at(at_config, "custom:profile_id", USER_ID)
-            self.at(at_config, "custom:application_id", APP_ID)
-            self.at(at_config_ids, self.config_ids_string)
-            time.sleep(0.5)
-            self.at(at_config, "general:navdata_demo", "TRUE")
-            time.sleep(0.5)
-            self.at(at_config_ids, self.config_ids_string)
-            time.sleep(0.5)
-            self.at(at_config, "general:video_enable", "TRUE")
-            time.sleep(0.5)
-            logging.info("Waiting 1s and sending request for controls")
-            time.sleep(0.5)
+        self.at(at_config_ids , self.config_ids_string)
+        self.at(at_config, "custom:session_id", SESSION_ID)
+        time.sleep(0.5)
 
-            self.at(at_config_ids , self.config_ids_string)
-            self.at(at_config, "custom:session_id", SESSION_ID)
-            time.sleep(0.5)
+        self.at(at_config_ids , self.config_ids_string)
+        self.at(at_config, "custom:profile_id", USER_ID)
+        time.sleep(0.5)
 
-            self.at(at_config_ids , self.config_ids_string)
-            self.at(at_config, "custom:profile_id", USER_ID)
-            time.sleep(0.5)
+        self.at(at_config_ids , self.config_ids_string)
+        self.at(at_config, "custom:application_id", APP_ID)
+        time.sleep(0.5)
 
-            self.at(at_config_ids , self.config_ids_string)
-            self.at(at_config, "custom:application_id", APP_ID)
-            time.sleep(0.5)
+        self.at(at_config_ids , self.config_ids_string)
+        self.at(at_config, "video:bitrate_control_mode", "1")
+        time.sleep(0.5)
 
-            self.at(at_config_ids , self.config_ids_string)
-            self.at(at_config, "video:bitrate_control_mode", "1")
-            time.sleep(0.5)
+        self.at(at_config_ids , self.config_ids_string)
+        self.at(at_config, "video:bitrate", "10000")
+        time.sleep(0.5)
 
-            self.at(at_config_ids , self.config_ids_string)
-            self.at(at_config, "video:bitrate", "10000")
-            time.sleep(0.5)
+        self.at(at_config_ids , self.config_ids_string)
+        self.at(at_config, "video:max_bitrate", "10000")
+        time.sleep(0.5)
 
-            self.at(at_config_ids , self.config_ids_string)
-            self.at(at_config, "video:max_bitrate", "10000")
-            time.sleep(0.5)
+        self.at(at_config_ids , self.config_ids_string)
+        self.at(at_config, "video:codec_fps", "30")
+        time.sleep(0.5)
 
-            self.at(at_config_ids , self.config_ids_string)
-            self.at(at_config, "video:codec_fps", "30")
-            time.sleep(0.5)
-
-            self.at(at_config_ids , self.config_ids_string)
-            self.at(at_config, "video:video_codec", 0x81)
-            time.sleep(0.5)
+        self.at(at_config_ids , self.config_ids_string)
+        self.at(at_config, "video:video_codec", 0x81)
+        time.sleep(0.5)
 
         self.last_command_is_hovering = True
 
@@ -146,13 +139,8 @@ class ARDrone(object):
         self.network_process = arnetwork.ARDroneNetworkProcess(nav_pipe_other, video_pipe_other, com_pipe_other, is_ar_drone_2)
         self.network_process.start()
 
-        #self.network_process = arnetwork2.ARDroneNetworkProcess(nav_pipe_other, video_pipe_other, com_pipe_other, is_ar_drone_2, self)
-        #self.network_process.run()
-
-        ipc_thread = True
-        if ipc_thread:
-            self.ipc_thread = arnetwork.IPCThread(self)
-            self.ipc_thread.start()
+        self.ipc_thread = arnetwork.IPCThread(self)
+        self.ipc_thread.start()
 
         self.image = np.zeros((360, 480, 3), np.uint8)
         self.navdata = dict()
@@ -276,7 +264,6 @@ class ARDrone(object):
         return _navdata
 
     def set_navdata(self, _navdata):
-        #print "set navdata"
         self.lock.acquire()
         self.navdata = _navdata
         self.lock.release()
@@ -552,7 +539,9 @@ def decode_navdata(packet):
 
 
 if __name__ == "__main__":
-
+    '''
+    For testing purpose only
+    '''
     import termios
     import fcntl
     import os

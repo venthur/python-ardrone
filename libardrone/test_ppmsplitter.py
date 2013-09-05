@@ -1,4 +1,3 @@
-import paveparser
 import mock
 import ppmsplitter
 import os
