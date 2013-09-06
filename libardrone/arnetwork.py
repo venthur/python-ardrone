@@ -73,6 +73,7 @@ class ARDroneNetworkProcess(multiprocessing.Process):
             control_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             control_socket.connect(('192.168.1.1', libardrone.ARDRONE_CONTROL_PORT))
             control_socket.setblocking(0)
+            logging.warn('Connection established')
             return video_socket, nav_socket, control_socket
 
         def _disconnect(video_socket, nav_socket, control_socket):
