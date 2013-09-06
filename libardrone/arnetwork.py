@@ -96,7 +96,7 @@ class ARDroneNetworkProcess(multiprocessing.Process):
                 _disconnect(video_socket, nav_socket, control_socket)
                 video_socket, nav_socket, control_socket = _connect()
                 reconnection_needed = False
-            inputready, outputready, exceptready = select.select([nav_socket, video_socket, self.com_pipe, control_socket], [], [], 0.25)
+            inputready, outputready, exceptready = select.select([nav_socket, video_socket, self.com_pipe, control_socket], [], [], 1.)
             if len(inputready) == 0:
                 connection_lost += 1
                 reconnection_needed = True
