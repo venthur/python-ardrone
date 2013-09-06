@@ -48,18 +48,19 @@ if __name__ == '__main__':
     nav_socket.send("\x01\x00\x00\x00")
 
     seq = 1
-    stopping = False
-    while not stopping:
-        inputready, outputready, exceptready = select.select([nav_socket], [], [], 20)
+    stopping = 1
+    while stopping < 100:
+        inputready, outputready, exceptready = select.select([nav_socket], [], [], 1)
         seq += 1
         at("COMWDG", seq, [])
         if len(inputready) == 0:
-            stopping = True
+            print "Connection lost for the %d time !" % stopping
+            nav_socket.send("\x01\x00\x00\x00")
+            stopping += 1
         for i in inputready:
             while 1:
                 try:
                     data = nav_socket.recv(500)
-                    print seq
                 except IOError:
                     break
 

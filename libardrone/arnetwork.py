@@ -52,24 +52,37 @@ class ARDroneNetworkProcess(multiprocessing.Process):
             import arvideo
 
     def run(self):
-        if self.is_ar_drone_2:
-            video_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            video_socket.connect(('192.168.1.1', libardrone.ARDRONE_VIDEO_PORT))
-            video_socket.setblocking(0)
-        else:
-            video_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            video_socket.setblocking(0)
-            video_socket.bind(('', libardrone.ARDRONE_VIDEO_PORT))
-            video_socket.sendto("\x01\x00\x00\x00", ('192.168.1.1', libardrone.ARDRONE_VIDEO_PORT))
 
-        nav_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
-        nav_socket.setblocking(0)
-        nav_socket.bind(('', libardrone.ARDRONE_NAVDATA_PORT))
-        nav_socket.sendto("\x01\x00\x00\x00", ('192.168.1.1', libardrone.ARDRONE_NAVDATA_PORT))
+        def _connect():
+            logging.warn('Connection to ardrone')
+            if self.is_ar_drone_2:
+                video_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                video_socket.connect(('192.168.1.1', libardrone.ARDRONE_VIDEO_PORT))
+                video_socket.setblocking(0)
+            else:
+                video_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+                video_socket.setblocking(0)
+                video_socket.bind(('', libardrone.ARDRONE_VIDEO_PORT))
+                video_socket.sendto("\x01\x00\x00\x00", ('192.168.1.1', libardrone.ARDRONE_VIDEO_PORT))
 
-        control_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        control_socket.connect(('192.168.1.1', libardrone.ARDRONE_CONTROL_PORT))
-        control_socket.setblocking(0)
+            nav_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
+            nav_socket.setblocking(0)
+            nav_socket.bind(('', libardrone.ARDRONE_NAVDATA_PORT))
+            nav_socket.sendto("\x01\x00\x00\x00", ('192.168.1.1', libardrone.ARDRONE_NAVDATA_PORT))
+
+            control_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            control_socket.connect(('192.168.1.1', libardrone.ARDRONE_CONTROL_PORT))
+            control_socket.setblocking(0)
+            logging.warn('Connection established')
+            return video_socket, nav_socket, control_socket
+
+        def _disconnect(video_socket, nav_socket, control_socket):
+            logging.warn('Disconnection to ardrone streams')
+            video_socket.close()
+            nav_socket.close()
+            control_socket.close()
+
+        video_socket, nav_socket, control_socket = _connect()
 
         stopping = False
         #loop receiving data and calculate bit rate
@@ -77,13 +90,22 @@ class ARDroneNetworkProcess(multiprocessing.Process):
         start = time.time()
         bitrate = 0.0
         data_bits = 0.0
+        connection_lost = 1
+        reconnection_needed = False
         while not stopping:
-            inputready, outputready, exceptready = select.select([nav_socket, video_socket, self.com_pipe, control_socket], [], [], 10)
+            if reconnection_needed:
+                _disconnect(video_socket, nav_socket, control_socket)
+                video_socket, nav_socket, control_socket = _connect()
+                reconnection_needed = False
+            inputready, outputready, exceptready = select.select([nav_socket, video_socket, self.com_pipe, control_socket], [], [], 1.)
+            if len(inputready) == 0:
+                connection_lost += 1
+                reconnection_needed = True
             for i in inputready:
                 if i == video_socket:
                     while 1:
                         try:
-                            data = video_socket.recv(4096)
+                            data = video_socket.recv(65536)
                             data_bits += len(data) * 8.0
                             timediff = time.time() - start
                             if self.is_ar_drone_2:
@@ -114,14 +136,19 @@ class ARDroneNetworkProcess(multiprocessing.Process):
                     stopping = True
                     break
                 elif i == control_socket:
-                    while 1:
+                    reconnection_needed = False
+                    while not reconnection_needed:
                         try:
                             data = control_socket.recv(65536)
-                            logging.warning("Control Socket says : %s", data)
+                            if len(data) == 0:
+                                logging.warning('Received an empty packet on control socket')
+                                reconnection_needed = True
+                            else:
+                                logging.warning("Control Socket says : %s", data)
+
                         except IOError:
                             break
-        video_socket.close()
-        nav_socket.close()
+        _disconnect(video_socket, nav_socket, control_socket)
 
 class IPCThread(threading.Thread):
     """
@@ -141,8 +168,12 @@ class IPCThread(threading.Thread):
                 if i == self.drone.video_pipe:
                     while self.drone.video_pipe.poll():
                         image = self.drone.video_pipe.recv()
-                    _image = Image.open(StringIO.StringIO(image))
-                    self.drone.set_image(_image)
+                    try:
+                        _image = Image.open(StringIO.StringIO(image))
+                        self.drone.set_image(_image)
+                    except:
+                        logging.error("There has been a problem with an image")
+
                 elif i == self.drone.nav_pipe:
                     while self.drone.nav_pipe.poll():
                         _navdata = self.drone.nav_pipe.recv()
