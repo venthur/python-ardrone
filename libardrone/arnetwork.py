@@ -19,20 +19,16 @@
 # THE SOFTWARE.
 import logging
 
-
 """
 This module provides access to the data provided by the AR.Drone.
 """
-
+import threading
 import select
 import socket
-import threading
 import multiprocessing
-import Image
-import StringIO
 import libardrone
 
-class ARDroneNetworkProcess(multiprocessing.Process):
+class ARDroneNetworkProcess(threading.Thread):
     """ARDrone Network Process.
 
     This process collects data from the video and navdata port, converts the
@@ -40,7 +36,7 @@ class ARDroneNetworkProcess(multiprocessing.Process):
     """
 
     def __init__(self, com_pipe, is_ar_drone_2, drone):
-        multiprocessing.Process.__init__(self)
+        threading.Thread.__init__(self)
         self._drone = drone
         self.com_pipe = com_pipe
         self.is_ar_drone_2 = is_ar_drone_2
@@ -84,11 +80,6 @@ class ARDroneNetworkProcess(multiprocessing.Process):
         video_socket, nav_socket, control_socket = _connect()
 
         stopping = False
-        #loop receiving data and calculate bit rate
-        import time
-        start = time.time()
-        bitrate = 0.0
-        data_bits = 0.0
         connection_lost = 1
         reconnection_needed = False
         while not stopping:
@@ -105,12 +96,8 @@ class ARDroneNetworkProcess(multiprocessing.Process):
                     while 1:
                         try:
                             data = video_socket.recv(65536)
-                            data_bits += len(data) * 8.0
-                            timediff = time.time() - start
                             if self.is_ar_drone_2:
                                 self.ar2video.write(data)
-                            if timediff > 0.0:
-                                bitrate = (data_bits / timediff) / 1000000
                         except IOError:
                             # we consumed every packet from the socket and
                             # continue with the last one
