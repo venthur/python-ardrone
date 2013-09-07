@@ -100,14 +100,10 @@ class ARDrone(object):
         self.set_video_codec(self.config_ids_string, 0x81)
 
         self.last_command_is_hovering = True
-        self.nav_pipe, nav_pipe_other = multiprocessing.Pipe()
         self.com_pipe, com_pipe_other = multiprocessing.Pipe()
 
-        self.network_process = arnetwork.ARDroneNetworkProcess(nav_pipe_other, com_pipe_other, is_ar_drone_2, self)
+        self.network_process = arnetwork.ARDroneNetworkProcess(com_pipe_other, is_ar_drone_2, self)
         self.network_process.start()
-
-        self.ipc_thread = arnetwork.IPCThread(self)
-        self.ipc_thread.start()
 
         self.image_shape = (360, 640, 3)
         self.image = np.zeros(self.image_shape, np.uint8)
