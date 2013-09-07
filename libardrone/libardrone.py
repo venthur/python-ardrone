@@ -100,7 +100,6 @@ class ARDrone(object):
         self.set_video_codec(self.config_ids_string, 0x81)
 
         self.last_command_is_hovering = True
-
         self.nav_pipe, nav_pipe_other = multiprocessing.Pipe()
         self.com_pipe, com_pipe_other = multiprocessing.Pipe()
 
@@ -278,6 +277,7 @@ class ARDrone(object):
     def set_image(self, image):
         if (image.shape == self.image_shape):
             self.image = image
+        self.image = image
 
     def apply_command(self, command):
         available_commands = ["emergency",
