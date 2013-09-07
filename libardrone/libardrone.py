@@ -79,12 +79,10 @@ class ARDrone(object):
         self.com_watchdog_timer = threading.Timer(self.timer_t, self.commwdg)
         self.lock = threading.Lock()
         self.speed = 0.2
+
+        time.sleep(0.5)
         self.config_ids_string = [SESSION_ID, USER_ID, APP_ID]
-
-        self.at(at_config, "general:navdata_demo", "TRUE")
-
         self.configure_multisession(SESSION_ID, USER_ID, APP_ID, self.config_ids_string)
-
         self.set_session_id (self.config_ids_string, SESSION_ID)
         time.sleep(0.5)
         self.set_profile_id(self.config_ids_string, USER_ID)
@@ -112,10 +110,19 @@ class ARDrone(object):
         self.ipc_thread = arnetwork.IPCThread(self)
         self.ipc_thread.start()
 
-        self.image = np.zeros((360, 640, 3), np.uint8)
+        self.image_shape = (360, 640, 3)
+        self.image = np.zeros(self.image_shape, np.uint8)
         self.navdata = dict()
         self.navdata[0] = dict(zip(['ctrl_state', 'battery', 'theta', 'phi', 'psi', 'altitude', 'vx', 'vy', 'vz', 'num_frames'], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]))
         self.time = 0
+
+        self.last_command_is_hovering = True
+
+        time.sleep(1.0)
+
+        self.at(at_config_ids , self.config_ids_string)
+        self.at(at_config, "general:navdata_demo", "TRUE")
+
 
     def takeoff(self):
         """Make the drone takeoff."""
@@ -199,8 +206,6 @@ class ARDrone(object):
         self.at(at_config, "custom:session_id", session_id)
         self.at(at_config, "custom:profile_id", user_id)
         self.at(at_config, "custom:application_id", app_id)
-        self.at(at_config_ids, config_ids_string)
-        self.at(at_config, "general:navdata_demo", "TRUE")
 
     def set_session_id (self, config_ids_string, session_id):
         self.at(at_config_ids , config_ids_string)
@@ -271,7 +276,8 @@ class ARDrone(object):
         self.navdata = _navdata
 
     def set_image(self, image):
-        self.image = image
+        if (image.shape == self.image_shape):
+            self.image = image
 
     def apply_command(self, command):
         available_commands = ["emergency",
