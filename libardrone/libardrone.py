@@ -50,7 +50,6 @@ USER_ID = "36355d78"
 APP_ID = "21d958e4"
 
 DEBUG = False
-IMAGE_ENCODING = "ppm"
 
 
 class ARDrone(object):
@@ -58,7 +57,7 @@ class ARDrone(object):
 
     Instanciate this class to control your drone and receive decoded video and
     navdata.
-    Possible value for video codec (Ardrone2):
+    Possible value for video codec (drone2):
       NULL_CODEC    = 0,
       UVLC_CODEC    = 0x20,       // codec_type value is used for START_CODE
       P264_CODEC    = 0x40,
@@ -100,11 +99,11 @@ class ARDrone(object):
         time.sleep(0.5)
         self.set_video_codec(self.config_ids_string, 0x81)
 
-        self.video_pipe, video_pipe_other = multiprocessing.Pipe()
+        self.last_command_is_hovering = True
         self.nav_pipe, nav_pipe_other = multiprocessing.Pipe()
         self.com_pipe, com_pipe_other = multiprocessing.Pipe()
 
-        self.network_process = arnetwork.ARDroneNetworkProcess(nav_pipe_other, video_pipe_other, com_pipe_other, is_ar_drone_2)
+        self.network_process = arnetwork.ARDroneNetworkProcess(nav_pipe_other, com_pipe_other, is_ar_drone_2, self)
         self.network_process.start()
 
         self.ipc_thread = arnetwork.IPCThread(self)
@@ -275,10 +274,10 @@ class ARDrone(object):
     def set_navdata(self, _navdata):
         self.navdata = _navdata
 
-    def set_image(self, _image):
-        _image = np.asarray(_image)
-        if (_image.shape == self.image_shape):
-            self.image = np.asarray(_image)
+    def set_image(self, image):
+        if (image.shape == self.image_shape):
+            self.image = image
+        self.image = image
 
     def apply_command(self, command):
         available_commands = ["emergency",
@@ -567,7 +566,7 @@ if __name__ == "__main__":
 
     import cv2
     try:
-        startvideo = False
+        startvideo = True
         video_waiting = False
         while 1:
             time.sleep(.0001)

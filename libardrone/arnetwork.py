@@ -39,15 +39,16 @@ class ARDroneNetworkProcess(multiprocessing.Process):
     data and sends it to the IPCThread.
     """
 
-    def __init__(self, nav_pipe, video_pipe, com_pipe, is_ar_drone_2):
+    def __init__(self, nav_pipe, com_pipe, is_ar_drone_2,
+                 drone):
         multiprocessing.Process.__init__(self)
         self.nav_pipe = nav_pipe
-        self.video_pipe = video_pipe
+        self._drone = drone
         self.com_pipe = com_pipe
         self.is_ar_drone_2 = is_ar_drone_2
         if is_ar_drone_2:
             import ar2video
-            self.ar2video = ar2video.ARVideo2(self.video_pipe, libardrone.DEBUG, libardrone.IMAGE_ENCODING)
+            self.ar2video = ar2video.ARVideo2(self._drone, libardrone.DEBUG)
         else:
             import arvideo
 
@@ -145,10 +146,10 @@ class ARDroneNetworkProcess(multiprocessing.Process):
                                 reconnection_needed = True
                             else:
                                 logging.warning("Control Socket says : %s", data)
-
                         except IOError:
                             break
         _disconnect(video_socket, nav_socket, control_socket)
+
 
 class IPCThread(threading.Thread):
     """
@@ -163,20 +164,10 @@ class IPCThread(threading.Thread):
 
     def run(self):
         while not self.stopping:
-            inputready, outputready, exceptready = select.select([self.drone.video_pipe, self.drone.nav_pipe], [], [], 1)
+            inputready, outputready, exceptready = select.select([self.drone.nav_pipe], [], [], 1)
             for i in inputready:
-                if i == self.drone.video_pipe:
-                    while self.drone.video_pipe.poll():
-                        image = self.drone.video_pipe.recv()
-                    try:
-                        _image = Image.open(StringIO.StringIO(image))
-                        self.drone.set_image(_image)
-                    except:
-                        logging.error("There has been a problem with an image")
-
-                elif i == self.drone.nav_pipe:
-                    while self.drone.nav_pipe.poll():
-                        _navdata = self.drone.nav_pipe.recv()
+                while self.drone.nav_pipe.poll():
+                    _navdata = self.drone.nav_pipe.recv()
                     self.drone.set_navdata(_navdata)
 
     def stop(self):

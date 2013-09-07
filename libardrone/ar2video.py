@@ -29,34 +29,22 @@ This is just H.264 encapsulated in a funny way.
 """
 
 import h264decoder
-import pngsplitter
-import ppmsplitter
 import paveparser
 
-class ARVideo2(object):
-    def __init__(self, video_pipe=None, debug=False, _format="png"):
 
-        if (debug):
-            self.h264 = h264decoder.H264ToPNG(None)
-        else:
-            if (_format == "ppm"):
-                self.pngsplit = ppmsplitter.PPMSplitter(self)
-            elif (_format == "png"):
-                self.pngsplit = pngsplitter.PNGSplitter(self)
-            else:
-                raise Exception("Not supported format ", _format)
-            self.h264 = h264decoder.H264ToPNG(self.pngsplit)
+class ARVideo2(object):
+    def __init__(self, drone, debug=False):
+        self.h264 = h264decoder.H264Decoder(self)
         self.paveparser = paveparser.PaVEParser(self.h264)
         self.latest_image = None
-        self.video_pipe = video_pipe
+        self._drone = drone
 
     """
     Called by the PNG splitter when there's an image ready
     """
     def image_ready(self, image):
         self.latest_image = image
-        if self.video_pipe:
-            self.video_pipe.send(image)
+        self._drone.set_image(image)
 
     """
     Guaranteed to return an image as a PIL Image object.

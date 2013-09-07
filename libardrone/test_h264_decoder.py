@@ -5,8 +5,8 @@ import os
 
 
 def test_h264_decoder():
-    pngstream = mock.Mock()
-    decoder = h264decoder.H264ToPNG(pngstream)
+    outfileobj = mock.Mock()
+    decoder = h264decoder.H264Decoder(outfileobj)
     example_video_stream = open(os.path.join(os.path.dirname(__file__), 'paveparser.output'))
     while True:
         data = example_video_stream.read(1000)
@@ -14,4 +14,4 @@ def test_h264_decoder():
             break
         decoder.write(data)
 
-    assert pngstream.write.called
+    assert outfileobj.image_ready.called
