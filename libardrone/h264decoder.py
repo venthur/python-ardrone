@@ -56,7 +56,7 @@ def enqueue_output(out, outfileobject):
 # Logic for making ffmpeg terminate on the death of this process
 def set_death_signal(signal):
     libc = ctypes.CDLL('libc.so.6')
-    PR_SET_PDEATHSIG = 1
+    PR_SET_DEATHSIG = 1
     libc.prctl(PR_SET_DEATHSIG, signal)
 
 
