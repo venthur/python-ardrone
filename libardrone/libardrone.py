@@ -100,19 +100,16 @@ class ARDrone(object):
         self.set_video_codec(self.config_ids_string, 0x81)
 
         self.last_command_is_hovering = True
-        self.nav_pipe, nav_pipe_other = multiprocessing.Pipe()
         self.com_pipe, com_pipe_other = multiprocessing.Pipe()
 
-        self.network_process = arnetwork.ARDroneNetworkProcess(nav_pipe_other, com_pipe_other, is_ar_drone_2, self)
-        self.network_process.start()
+        self.navdata = dict()
+        self.navdata[0] = dict(zip(['ctrl_state', 'battery', 'theta', 'phi', 'psi', 'altitude', 'vx', 'vy', 'vz', 'num_frames'], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]))
 
-        self.ipc_thread = arnetwork.IPCThread(self)
-        self.ipc_thread.start()
+        self.network_process = arnetwork.ARDroneNetworkProcess(com_pipe_other, is_ar_drone_2, self)
+        self.network_process.start()
 
         self.image_shape = (360, 640, 3)
         self.image = np.zeros(self.image_shape, np.uint8)
-        self.navdata = dict()
-        self.navdata[0] = dict(zip(['ctrl_state', 'battery', 'theta', 'phi', 'psi', 'altitude', 'vx', 'vy', 'vz', 'num_frames'], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]))
         self.time = 0
 
         self.last_command_is_hovering = True
@@ -268,11 +265,11 @@ class ARDrone(object):
         return _im
 
     def get_navdata(self):
-        _navdata = copy.deepcopy(self.navdata)
-        return _navdata
+        return self.navdata
 
-    def set_navdata(self, _navdata):
-        self.navdata = _navdata
+    def set_navdata(self, navdata):
+        self.navdata = navdata
+        self.get_navdata()
 
     def set_image(self, image):
         if (image.shape == self.image_shape):
@@ -538,9 +535,6 @@ def decode_navdata(packet):
             for i in 'theta', 'phi', 'psi':
                 values[i] = int(values[i] / 1000)
         data[id_nr] = values
-
-
-
     return data, has_flying_information
 
 

@@ -19,30 +19,24 @@
 # THE SOFTWARE.
 import logging
 
-
 """
 This module provides access to the data provided by the AR.Drone.
 """
-
+import threading
 import select
 import socket
-import threading
 import multiprocessing
-import Image
-import StringIO
 import libardrone
 
-class ARDroneNetworkProcess(multiprocessing.Process):
+class ARDroneNetworkProcess(threading.Thread):
     """ARDrone Network Process.
 
     This process collects data from the video and navdata port, converts the
     data and sends it to the IPCThread.
     """
 
-    def __init__(self, nav_pipe, com_pipe, is_ar_drone_2,
-                 drone):
-        multiprocessing.Process.__init__(self)
-        self.nav_pipe = nav_pipe
+    def __init__(self, com_pipe, is_ar_drone_2, drone):
+        threading.Thread.__init__(self)
         self._drone = drone
         self.com_pipe = com_pipe
         self.is_ar_drone_2 = is_ar_drone_2
@@ -86,11 +80,6 @@ class ARDroneNetworkProcess(multiprocessing.Process):
         video_socket, nav_socket, control_socket = _connect()
 
         stopping = False
-        #loop receiving data and calculate bit rate
-        import time
-        start = time.time()
-        bitrate = 0.0
-        data_bits = 0.0
         connection_lost = 1
         reconnection_needed = False
         while not stopping:
@@ -107,12 +96,8 @@ class ARDroneNetworkProcess(multiprocessing.Process):
                     while 1:
                         try:
                             data = video_socket.recv(65536)
-                            data_bits += len(data) * 8.0
-                            timediff = time.time() - start
                             if self.is_ar_drone_2:
                                 self.ar2video.write(data)
-                            if timediff > 0.0:
-                                bitrate = (data_bits / timediff) / 1000000
                         except IOError:
                             # we consumed every packet from the socket and
                             # continue with the last one
@@ -120,7 +105,7 @@ class ARDroneNetworkProcess(multiprocessing.Process):
                         # Sending is taken care of by the decoder
                     if not self.is_ar_drone_2:
                         w, h, image, t = arvideo.read_picture(data)
-                        self.video_pipe.send(image)
+                        self._drone.set_image(image)
                 elif i == nav_socket:
                     while 1:
                         try:
@@ -131,7 +116,7 @@ class ARDroneNetworkProcess(multiprocessing.Process):
                             break
                     navdata, has_information = libardrone.decode_navdata(data)
                     if (has_information):
-                        self.nav_pipe.send(navdata)
+                        self._drone.set_navdata(navdata)
                 elif i == self.com_pipe:
                     _ = self.com_pipe.recv()
                     stopping = True
@@ -149,27 +134,3 @@ class ARDroneNetworkProcess(multiprocessing.Process):
                         except IOError:
                             break
         _disconnect(video_socket, nav_socket, control_socket)
-
-
-class IPCThread(threading.Thread):
-    """
-    Inter Process Communication Thread.
-    This thread collects the data from the ARDroneNetworkProcess and forwards it to the ARDrone.
-    """
-
-    def __init__(self, drone):
-        threading.Thread.__init__(self)
-        self.drone = drone
-        self.stopping = False
-
-    def run(self):
-        while not self.stopping:
-            inputready, outputready, exceptready = select.select([self.drone.nav_pipe], [], [], 1)
-            for i in inputready:
-                while self.drone.nav_pipe.poll():
-                    _navdata = self.drone.nav_pipe.recv()
-                    self.drone.set_navdata(_navdata)
-
-    def stop(self):
-        """Stop the IPCThread activity."""
-        self.stopping = True
