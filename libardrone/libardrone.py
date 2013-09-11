@@ -24,7 +24,6 @@ V.1 This module was tested with Python 2.6.6 and AR.Drone vanilla firmware 1.5.1
 V.2.alpha
 """
 
-import copy
 import logging
 import socket
 import struct
@@ -72,13 +71,18 @@ class ARDrone(object):
       MP4_360P_H264_360P_CODEC = 0x88,
     """
 
-    def __init__(self, is_ar_drone_2=False):
+    def __init__(self, is_ar_drone_2=False, hd=False):
 
         self.seq_nr = 1
         self.timer_t = 0.2
         self.com_watchdog_timer = threading.Timer(self.timer_t, self.commwdg)
         self.lock = threading.Lock()
         self.speed = 0.2
+        self.hd = hd
+        if (self.hd):
+            self.image_shape = (720, 1280, 3)
+        else:
+            self.image_shape = (360, 640, 3)
 
         time.sleep(0.5)
         self.config_ids_string = [SESSION_ID, USER_ID, APP_ID]
@@ -97,7 +101,10 @@ class ARDrone(object):
         time.sleep(0.5)
         self.set_fps(self.config_ids_string, "30")
         time.sleep(0.5)
-        self.set_video_codec(self.config_ids_string, 0x81)
+        if (self.hd):
+            self.set_video_codec(self.config_ids_string, 0x83)
+        else:
+            self.set_video_codec(self.config_ids_string, 0x81)
 
         self.last_command_is_hovering = True
         self.com_pipe, com_pipe_other = multiprocessing.Pipe()
@@ -108,7 +115,6 @@ class ARDrone(object):
         self.network_process = arnetwork.ARDroneNetworkProcess(com_pipe_other, is_ar_drone_2, self)
         self.network_process.start()
 
-        self.image_shape = (360, 640, 3)
         self.image = np.zeros(self.image_shape, np.uint8)
         self.time = 0
 
@@ -315,8 +321,8 @@ class ARDrone(object):
             self.last_command_is_hovering = True
 
 class ARDrone2(ARDrone):
-    def __init__(self):
-        ARDrone.__init__(self, True)
+    def __init__(self, hd=False):
+        ARDrone.__init__(self, True, hd)
 
 ###############################################################################
 ### Low level AT Commands

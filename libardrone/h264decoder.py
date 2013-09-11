@@ -43,9 +43,8 @@ except ImportError:
 ON_POSIX = 'posix' in sys.builtin_module_names
 
 
-def enqueue_output(out, outfileobject):
-    frame_size_bytes = 360*640*3
-    frame_size = (360, 640)
+def enqueue_output(out, outfileobject, frame_size):
+    frame_size_bytes = frame_size[0] * frame_size[1] * 3
     while True:
         buffer_str = out.read(frame_size_bytes)
         im = np.frombuffer(buffer_str, count=frame_size_bytes, dtype=np.uint8)
@@ -74,14 +73,14 @@ said data.
 You should then call write repeatedly to write some encoded H.264 data.
 """
 class H264Decoder(object):
-    def __init__(self, outfileobject=None):
+    def __init__(self, outfileobject=None, frame_size=(360, 640)):
         if outfileobject is not None:
             p = Popen(["nice", "-n", "15", "ffmpeg", "-i", "-", "-f", "sdl",
                        "-probesize", "2048", "-flags", "low_delay", "-f",
                        "rawvideo", "-pix_fmt", 'rgb24', "-"],
                       stdin=PIPE, stdout=PIPE, stderr=open('/dev/null', 'w'),
                       bufsize=0, preexec_fn=set_death_signal_int)
-            t = Thread(target=enqueue_output, args=(p.stdout, outfileobject))
+            t = Thread(target=enqueue_output, args=(p.stdout, outfileobject, frame_size))
             t.daemon = True # thread dies with the program
             t.start()
         else:
