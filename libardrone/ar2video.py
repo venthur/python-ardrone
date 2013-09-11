@@ -34,7 +34,7 @@ import paveparser
 
 class ARVideo2(object):
     def __init__(self, drone, debug=False):
-        self.h264 = h264decoder.H264Decoder(self)
+        self.h264 = h264decoder.H264Decoder(self, drone.image_shape)
         self.paveparser = paveparser.PaVEParser(self.h264)
         self.latest_image = None
         self._drone = drone
