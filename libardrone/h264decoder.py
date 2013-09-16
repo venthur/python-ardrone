@@ -19,6 +19,7 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
+import os
 
 
 """
@@ -73,8 +74,13 @@ said data.
 You should then call write repeatedly to write some encoded H.264 data.
 """
 class H264Decoder(object):
+
     def __init__(self, outfileobject=None, frame_size=(360, 640)):
         if outfileobject is not None:
+
+            if (H264Decoder.which('ffmpeg') is None):
+                raise Exception("You need to install ffmpeg to be able to run ardrone")
+
             p = Popen(["nice", "-n", "15", "ffmpeg", "-i", "-", "-f", "sdl",
                        "-probesize", "2048", "-flags", "low_delay", "-f",
                        "rawvideo", "-pix_fmt", 'rgb24', "-"],
@@ -84,6 +90,9 @@ class H264Decoder(object):
             t.daemon = True # thread dies with the program
             t.start()
         else:
+            if (H264Decoder.which('ffplay') is None):
+                raise Exception("You need to install ffmpeg and ffplay to be able to run ardrone in debug mode")
+
             p = Popen(["nice", "-n", "15", "ffplay", "-probesize", "2048",
                        "-flags", "low_delay", "-i", "-"],
                       stdin=PIPE, stdout=open('/dev/null', 'w'),
@@ -94,3 +103,21 @@ class H264Decoder(object):
 
     def write(self, data):
         self.writefd.write(data)
+
+    @staticmethod
+    def which(program):
+        def is_exe(fpath):
+            return os.path.isfile(fpath) and os.access(fpath, os.X_OK)
+
+        fpath, fname = os.path.split(program)
+        if fpath:
+            if is_exe(program):
+                return program
+        else:
+            for path in os.environ["PATH"].split(os.pathsep):
+                path = path.strip('"')
+                exe_file = os.path.join(path, program)
+                if is_exe(exe_file):
+                    return exe_file
+
+        return None
