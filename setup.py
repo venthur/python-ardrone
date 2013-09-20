@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 
 setup(
-    name='mtools',
+    name='python-ardrone',
     author='Brain Corporation',
     author_email='passot@braincorporation.com',
     url='https://github.com/braincorp/python-ardrone',
