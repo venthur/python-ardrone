@@ -50,7 +50,17 @@ APP_ID = "21d958e4"
 
 DEBUG = False
 
+# 0: "Not defined"
+# 131072:  "Landed"
+# 393216:  "Taking-off-Floor"
+# 393217:  "Taking-off-Air"
+# 262144:  "Hovering"
+# 524288:  "Landing"
+# 458752:  "Stabilizing"
+# 196608:  "Moving"
+# 262153 and 196613:  "Undefined"
 ctrl_state_dict={0:0, 131072:1, 393216:2, 393217:3, 262144:4, 524288:5, 458752:6, 196608:7, 262153:8, 196613:9}
+
 
 class ARDrone(object):
     """ARDrone Class.
