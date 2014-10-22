@@ -1,3 +1,6 @@
+<a href="http://flattr.com/thing/1117157/venthurpython-ardrone-on-GitHub" target="_blank"><img src="http://api.flattr.com/button/flattr-badge-large.png" alt="Flattr this" title="Flattr this" border="0" /></a>
+
+
 Getting Started:
 ----------------
 
