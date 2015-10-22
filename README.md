@@ -1,5 +1,7 @@
 <a href="https://flattr.com/submit/auto?user_id=venthur&url=http%3A%2F%2Fgithub.com%2Fventhur%2Fpython-ardrone" target="_blank"><img src="http://api.flattr.com/button/flattr-badge-large.png" alt="Flattr this" title="Flattr this" border="0"></a>
 
+[![Video of the drone in action](https://img.youtube.com/vi/2HEV37GbUow/0.jpg)](https://www.youtube.com/watch?v=2HEV37GbUow)
+
 Getting Started:
 ----------------
 
