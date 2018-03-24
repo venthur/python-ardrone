@@ -50,12 +50,10 @@ while running:
         imageyuv = stream.retrieve(buff)
         imagergb = cv2.cvtColor(imageyuv[1], cv2.COLOR_BGR2RGB)
         im = preprocess_image(imagergb)
-        keypoint = None
+        keypoint, offset = process_image(im)
 
         # Process image
         if flying:
-            keypoint, offset = process_image(im)
-
             a, b, c, d = get_flight_command(offset)
             if a is None:
                 drone.land()
@@ -65,10 +63,8 @@ while running:
                 print(a,b,c,d)
                 drone.at(libardrone.at_pcmd, True, a, b, c, d)
 
-        print("A")
-
         if keypoint is None:
-            rgb_im = cv2.cvtColor(im, cv2.COLOR_GRAY2BGR)
+            rgb_im = cv2.cvtColor(im, cv2.COLOR_GRAY2RGB)
         else:
             rgb_im = draw_keypoint(keypoint, im)
 

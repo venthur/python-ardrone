@@ -6,7 +6,6 @@ import numpy as np
 import time
 import pygame
 from PIL import Image, ImageEnhance
-from matplotlib import pyplot as plt
 
 
 def showme(pic):
@@ -19,45 +18,54 @@ def invert(imagem):
     return 255 - imagem
 
 
-def binarize2(arr, thresh=200):
+def binarize2(arr, thresh=170):
     return (arr > thresh).astype(int) * 255
 
 
-def binarize_array(numpy_array, threshold=200):
-    """Binarize a numpy array."""
+def check_lightness(im):
+    under_horizon = False
 
-    for i in range(len(numpy_array)):
-        for j in range(len(numpy_array[0])):
-            if numpy_array[i][j] > threshold:
-                numpy_array[i][j] = 255
-            else:
-                numpy_array[i][j] = 0
-    return numpy_array
+    for x in xrange(len(im)):
+        val = np.sum(im[x])
+        if not under_horizon:
+            im[x] = (im[x] < -1).astype(int)
+
+            if val < 25*255:
+                print("Horizon is at y={}".format(x))
+                under_horizon = True
+
+    return im
 
 
 def preprocess_image(im):
+    start = time.time()
     # Preprocessing - Greyscale
     im = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
 
+    #im = np.array(map(extract_red, im))
+
     # Preprocessing - Brightness / Contrast
     pil_im = Image.fromarray(im)
-    pil_im = ImageEnhance.Brightness(pil_im).enhance(0.18)
+    pil_im = ImageEnhance.Brightness(pil_im).enhance(0.20)
     pil_im = ImageEnhance.Contrast(pil_im).enhance(7)
-    pil_im = ImageEnhance.Brightness(pil_im).enhance(0.18)
+    pil_im = ImageEnhance.Brightness(pil_im).enhance(0.20)
     pil_im = ImageEnhance.Contrast(pil_im).enhance(7)
 
     # Convert back to cv2
     im = np.array(pil_im)
+
     im = binarize2(im)
+
+    im = check_lightness(im)
+
     im = np.array(im, dtype=np.uint8)
     im = invert(im)
+    end = time.time()
+    print("Preprocessing took {} seconds".format(end - start))
     return im
 
 
 def process_image(im):
-    start = time.time()
-    end = time.time()
-    print("Preprocessing took {} seconds".format(end - start))
 
     # Setup SimpleBlobDetector parameters.
     params = cv2.SimpleBlobDetector_Params()
