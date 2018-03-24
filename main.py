@@ -88,6 +88,7 @@ while running:
         surface = pygame.image.frombuffer(rgb_im, (W, H), 'RGB')
         bat = drone.navdata.get('battery', 0)
         screen.blit(surface, (0, 0))
+
         pygame.display.flip()
         clock.tick(50)
         pygame.display.set_caption("FPS: %.2f" % clock.get_fps())
