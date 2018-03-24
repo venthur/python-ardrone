@@ -3,11 +3,11 @@
 
 import cv2
 import pygame
-import numpy
 import libardrone
 from flightCommandFromCoordinates import get_flight_command
 from recognition import preprocess_image, process_image, draw_keypoint
 
+capture = True
 running = True
 flying = False
 path = 'tcp://192.168.1.1:5555'
@@ -20,6 +20,11 @@ hud_color = (255, 0, 0)
 screen = pygame.display.set_mode((W, H))
 clock = pygame.time.Clock()
 stream = cv2.VideoCapture(path)
+
+if capture:
+    fourcc = cv2.VideoWriter_fourcc(*'XVID')
+    out = cv2.VideoWriter("output.avi", fourcc, 20.0, (W, H))
+
 while running:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -48,6 +53,8 @@ while running:
     try:
         buff = stream.grab()
         imageyuv = stream.retrieve(buff)
+        if capture:
+            out.write(imageyuv)
         imagergb = cv2.cvtColor(imageyuv[1], cv2.COLOR_BGR2RGB)
         im = preprocess_image(imagergb)
         keypoint, offset = process_image(im)
