@@ -6,7 +6,7 @@ import pygame
 import numpy
 import libardrone
 from flightCommandFromCoordinates import get_flight_command
-from recognition import preprocess_image, process_image
+from recognition import preprocess_image, process_image, draw_keypoint
 
 running = True
 flying = False
@@ -50,6 +50,7 @@ while running:
         imageyuv = stream.retrieve(buff)
         imagergb = cv2.cvtColor(imageyuv[1], cv2.COLOR_BGR2RGB)
         im = preprocess_image(imagergb)
+        keypoint = None
 
         # Process image
         if flying:
@@ -63,8 +64,14 @@ while running:
             else:
                 print(a,b,c,d)
                 drone.at(libardrone.at_pcmd, True, a, b, c, d)
+
         print("A")
-        rgb_im = cv2.cvtColor(im, cv2.COLOR_GRAY2BGR)
+
+        if keypoint is None:
+            rgb_im = cv2.cvtColor(im, cv2.COLOR_GRAY2BGR)
+        else:
+            rgb_im = draw_keypoint(keypoint, im)
+
         surface = pygame.image.frombuffer(rgb_im, (W, H), 'RGB')
         bat = drone.navdata.get('battery', 0)
         screen.blit(surface, (0, 0))

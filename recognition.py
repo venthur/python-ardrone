@@ -4,6 +4,7 @@
 import cv2
 import numpy as np
 import time
+import pygame
 from PIL import Image, ImageEnhance
 from matplotlib import pyplot as plt
 
@@ -91,7 +92,7 @@ def process_image(im):
     print("{} blob(s) found".format(len(keypoints)))
 
     if len(keypoints) == 0:
-        return None, None, im
+        return None, None
 
     # Get largest keypoint
     largest = None
@@ -109,30 +110,40 @@ def process_image(im):
 
     print("Offset from center is {}".format(offset))
 
-    return largest, offset, im
+    return largest, offset
 
 
-def plot_image(keypoint, im):
+def draw_keypoint(keypoint, im):
+    return cv2.drawKeypoints(im, [keypoint], np.array([]), (255, 0, 0),
+                             cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+
+
+def plot_image(keypoint, im, screen, clock):
     # Draw detected blobs as red circles.
     # cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS ensures
     # the size of the circle corresponds to the size of blob
+    surface = pygame.image.frombuffer(im, (W, H), 'RGB')
+    screen.blit(surface, (0, 0))
+    pygame.display.flip()
+    clock.tick(20)
+    pygame.display.set_caption("FPS: %.2f" % clock.get_fps())
+    time.sleep(1)
 
-    im_with_keypoints = cv2.drawKeypoints(im, [keypoint], np.array([]), (255, 0, 0),
-                                          cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
 
-    title = 'Blobs Detected'
-    image = im_with_keypoints
+def initialize(W, H):
+    pygame.init()
+    screen = pygame.display.set_mode((W, H))
+    clock = pygame.time.Clock()
 
-    plt.subplot(1, 1, 1), plt.imshow(image, 'gray')
-    plt.title(title)
-    plt.xticks([]), plt.yticks([])  # to hide tick values on X and Y axis
-
-    plt.show()
+    return screen, clock
 
 
 if __name__ == "__main__":
+    W, H = 1280, 720
+    screen, clock = initialize(W, H)
+
     # Read image
-    im = cv2.imread("test_iamges/far2.jpg")
+    im = cv2.imread("test_images/far2.jpg")
 
     # Preprocess image
     im = preprocess_image(im)
@@ -140,5 +151,8 @@ if __name__ == "__main__":
     # Process image
     keypoint, offset = process_image(im)
 
-    # Plot image
-    plot_image(keypoint, im)
+    # Draw keypoints
+    im = draw_keypoint(keypoint, im)
+
+    # # Plot image
+    plot_image(keypoint, im, screen, clock)
