@@ -11,6 +11,9 @@
 # landing: the drone is landing
 # takeOff: the drone is taking off
 # mode: Manual or automatic
+import pygame
+
 
 def render(screen,  originalImage, newImage, whichImage, offset, keypoint, a,b,c,d, landing, takeOff, mode):
-    pass
+    surface = pygame.image.frombuffer(rgb_im, (W, H), 'RGB')
+    screen.blit(surface, (0, 0))

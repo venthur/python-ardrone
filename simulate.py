@@ -28,8 +28,7 @@ while cap.isOpened():
         rgb_im = cv2.cvtColor(im, cv2.COLOR_GRAY2RGB)
     else:
         rgb_im = draw_keypoint(keypoint, im)
-    surface = pygame.image.frombuffer(rgb_im, (W, H), 'RGB')
-    screen.blit(surface, (0, 0))
+
     pygame.display.flip()
     render(screen, imagergb, rgb_im, True, offset, keypoint, a, b, c, d, False, False, "AUTOMATIC")
     clock.tick(20)
