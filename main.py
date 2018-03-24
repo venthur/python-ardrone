@@ -72,7 +72,7 @@ while running:
         bat = drone.navdata.get('battery', 0)
         screen.blit(surface, (0, 0))
         pygame.display.flip()
-        clock.tick(20)
+        clock.tick(50)
         pygame.display.set_caption("FPS: %.2f" % clock.get_fps())
         f = pygame.font.Font(None, 20)
         hud = f.render('Battery: %i%%' % bat, True, hud_color)
