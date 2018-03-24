@@ -10,8 +10,12 @@ pygame.init()
 W, H = 640, 360
 screen = pygame.display.set_mode((W, H))
 clock = pygame.time.Clock()
-
+image_mode = False
 while cap.isOpened():
+    for event in pygame.event.get():
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_i:
+                image_mode = not image_mode
     ret, frame = cap.read()
     imagergb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     im = preprocess_image(imagergb)
@@ -30,7 +34,7 @@ while cap.isOpened():
         rgb_im = draw_keypoint(keypoint, im)
 
     pygame.display.flip()
-    render(screen, imagergb, rgb_im, True, offset, keypoint, a, b, c, d, False, False, "AUTOMATIC")
+    render(screen, imagergb, rgb_im, image_mode, offset, keypoint, a, b, c, d, False, False, "AUTOMATIC")
     clock.tick(20)
     pygame.display.set_caption("FPS: %.2f" % clock.get_fps())
 
