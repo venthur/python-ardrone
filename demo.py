@@ -51,13 +51,13 @@ def main():
                 # takeoff / land
                 elif event.key == pygame.K_RETURN:
                     drone.takeoff()
-                    drone.at(libardrone.at_pcmd, True, 0, 0, 1, 1)
+                    drone.at(libardrone.at_pcmd, True, 0, 1, 1, 0)
                 elif event.key == pygame.K_SPACE:
                     drone.land()
                 elif event.type == pygame.K_UP:
                     drone.hover()
                 elif event.type == pygame.K_DOWN:
-                    drone.at(libardrone.at_pcmd, True, 0, 0, 1, -1)
+                    drone.at(libardrone.at_pcmd, True, 0, 1, -1, 0)
 
         try:
             surface = pygame.image.fromstring(drone.image, (W, H), 'RGB')
