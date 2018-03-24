@@ -138,7 +138,7 @@ if __name__ == "__main__":
     im = preprocess_image(im)
 
     # Process image
-    keypoint, offset, im = process_image(im)
+    keypoint, offset = process_image(im)
 
     # Plot image
     plot_image(keypoint, im)

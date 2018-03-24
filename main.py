@@ -50,11 +50,10 @@ while running:
         imageyuv = stream.retrieve(buff)
         imagergb = cv2.cvtColor(imageyuv[1], cv2.COLOR_BGR2RGB)
         im = preprocess_image(imagergb)
-        dontcare = im
 
         # Process image
         if flying:
-            keypoint, offset, dontcare = process_image(im)
+            keypoint, offset = process_image(im)
 
             a, b, c, d = get_flight_command(offset)
             if a is None:
@@ -65,7 +64,8 @@ while running:
                 print(a,b,c,d)
                 drone.at(libardrone.at_pcmd, True, a, b, c, d)
         print("A")
-        surface = pygame.image.frombuffer(dontcare, (W, H), 'L')
+        rgb_im = cv2.cvtColor(im, cv2.COLOR_GRAY2BGR)
+        surface = pygame.image.frombuffer(rgb_im, (W, H), 'RGB')
         bat = drone.navdata.get('battery', 0)
         screen.blit(surface, (0, 0))
         pygame.display.flip()
