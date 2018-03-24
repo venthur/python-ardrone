@@ -66,7 +66,6 @@ while running:
         if need_to_land and land_counter >= 30:
             drone.land()
             flying = False
-            running = False
         elif need_to_land:
             print("Landing in {}".format(land_counter - 30))
             land_counter += 1
