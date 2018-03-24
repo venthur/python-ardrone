@@ -79,6 +79,8 @@ while running:
         print bat
         screen.blit(hud, (10, 10))
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         print e
         pass
 pygame.quit()
