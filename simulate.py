@@ -1,6 +1,7 @@
 import cv2
 import pygame
 
+from flightCommandFromCoordinates import get_flight_command
 from recognition import preprocess_image, process_image, draw_keypoint
 
 cap = cv2.VideoCapture('output.avi')
@@ -14,6 +15,13 @@ while cap.isOpened():
     imagergb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     im = preprocess_image(imagergb)
     keypoint, offset = process_image(im)
+
+    # Process image
+    a, b, c, d = get_flight_command(keypoint, offset)
+    if a is None:
+        print("[DRONE] Landing!")
+    else:
+        print(a, b, c, d)
 
     if keypoint is None:
         rgb_im = cv2.cvtColor(im, cv2.COLOR_GRAY2RGB)

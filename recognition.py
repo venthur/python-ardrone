@@ -31,14 +31,13 @@ def check_lightness(im):
             im[x] = (im[x] < -1).astype(int)
 
             if val < 25*255:
-                print("Horizon is at y={}".format(x))
+                #print("Horizon is at y={}".format(x))
                 under_horizon = True
 
     return im
 
 
 def preprocess_image(im):
-    start = time.time()
     # Preprocessing - Greyscale
     im = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
 
@@ -60,8 +59,6 @@ def preprocess_image(im):
 
     im = np.array(im, dtype=np.uint8)
     im = invert(im)
-    end = time.time()
-    print("Preprocessing took {} seconds".format(end - start))
     return im
 
 
@@ -97,7 +94,7 @@ def process_image(im):
     # Detect blobs.
     keypoints = detector.detect(im)
 
-    print("{} blob(s) found".format(len(keypoints)))
+    #print("{} blob(s) found".format(len(keypoints)))
 
     if len(keypoints) == 0:
         return None, None
@@ -108,15 +105,15 @@ def process_image(im):
         if largest is None or kp.size > largest.size:
             largest = kp
 
-    print("Largest keypoint at {}".format(largest.pt))
+    #print("Largest keypoint at {}".format(largest.pt))
 
     # Calculate offset
     x, y = largest.pt
     x_size, y_size = len(im[0]), len(im)
-    print("Image size is {}x{}".format(x_size, y_size))
+    #print("Image size is {}x{}".format(x_size, y_size))
     offset = (x / x_size)-0.5, (y / y_size)-0.5
 
-    print("Offset from center is {}".format(offset))
+    #print("Offset from center is {}".format(offset))
 
     return largest, offset
 

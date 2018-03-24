@@ -54,7 +54,7 @@ while running:
 
         # Process image
         if flying:
-            a, b, c, d = get_flight_command(offset)
+            a, b, c, d = get_flight_command(keypoint, offset)
             if a is None:
                 drone.land()
                 flying = False
