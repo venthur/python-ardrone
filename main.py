@@ -4,10 +4,11 @@
 import cv2
 import pygame
 import libardrone
+import time
 from flightCommandFromCoordinates import get_flight_command
 from recognition import preprocess_image, process_image, draw_keypoint
 
-capture = True
+capture = False
 running = True
 flying = False
 path = 'tcp://192.168.1.1:5555'
@@ -20,6 +21,9 @@ hud_color = (255, 0, 0)
 screen = pygame.display.set_mode((W, H))
 clock = pygame.time.Clock()
 stream = cv2.VideoCapture(path)
+
+need_to_land = False
+land_counter = 0
 
 if capture:
     fourcc = cv2.VideoWriter_fourcc(*'XVID')
@@ -59,13 +63,20 @@ while running:
         im = preprocess_image(imagergb)
         keypoint, offset = process_image(im)
 
+        if need_to_land and land_counter >= 30:
+            drone.land()
+            flying = False
+            running = False
+        elif need_to_land:
+            print("Landing in {}".format(land_counter - 30))
+            land_counter += 1
+
         # Process image
-        if flying:
+        if flying and not need_to_land:
             a, b, c, d = get_flight_command(keypoint, offset)
             if a is None:
-                drone.land()
-                flying = False
-                running = False
+                need_to_land = True
+
             else:
                 print(a,b,c,d)
                 drone.at(libardrone.at_pcmd, True, a, b, c, d)
