@@ -6,6 +6,7 @@ import pygame
 import numpy
 import libardrone
 from flightCommandFromCoordinates import get_flight_command
+from recognition import preprocess_image, process_image
 
 running = True
 flying = False
@@ -30,18 +31,14 @@ while running:
             # takeoff / land
             elif event.key == pygame.K_RETURN:
                 drone.takeoff()
+                flying = True
             elif event.key == pygame.K_SPACE:
                 drone.land()
+                flying = False
             # emergency
             elif event.key == pygame.K_BACKSPACE:
                 drone.reset()
             # forward / backward
-            elif event.key == pygame.K_w:
-                a,b,c,d = get_flight_command(0, 0)
-                if a is None:
-                    drone.land()
-                    running = False
-                drone.at(libardrone.at_pcmd, True, a,b,c,d)
 
     if running == False:
         print "Shut Down"
@@ -52,18 +49,33 @@ while running:
         buff = stream.grab()
         imageyuv = stream.retrieve(buff)
         imagergb = cv2.cvtColor(imageyuv[1], cv2.COLOR_BGR2RGB)
-        print(type(imagergb))
-        surface = pygame.image.frombuffer(imagergb, (W, H), 'RGB')
+        im = preprocess_image(imagergb)
+        dontcare = im
+
+        # Process image
+        if flying:
+            keypoint, offset, dontcare = process_image(im)
+
+            a, b, c, d = get_flight_command(offset)
+            if a is None:
+                drone.land()
+                flying = False
+                running = False
+            else:
+                print(a,b,c,d)
+                drone.at(libardrone.at_pcmd, True, a, b, c, d)
+        print("A")
+        surface = pygame.image.frombuffer(dontcare, (W, H), 'L')
         bat = drone.navdata.get('battery', 0)
         screen.blit(surface, (0, 0))
         pygame.display.flip()
-        clock.tick(50)
+        clock.tick(20)
         pygame.display.set_caption("FPS: %.2f" % clock.get_fps())
         f = pygame.font.Font(None, 20)
         hud = f.render('Battery: %i%%' % bat, True, hud_color)
         print bat
         screen.blit(hud, (10, 10))
-    except:
-        print "Missed Frame"
+    except Exception as e:
+        print e
         pass
 pygame.quit()
