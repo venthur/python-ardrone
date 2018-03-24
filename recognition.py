@@ -55,7 +55,6 @@ def preprocess_image(im):
 
 def process_image(im):
     start = time.time()
-    im = preprocess_image(im)
     end = time.time()
     print("Preprocessing took {} seconds".format(end - start))
 
@@ -131,6 +130,9 @@ def plot_image(keypoint, im):
 if __name__ == "__main__":
     # Read image
     im = cv2.imread("test_iamges/far2.jpg")
+
+    # Preprocess image
+    im = preprocess_image(im)
 
     # Process image
     keypoint, offset, im = process_image(im)
