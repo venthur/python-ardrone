@@ -90,6 +90,9 @@ def process_image(im):
 
     print("{} blob(s) found".format(len(keypoints)))
 
+    if len(keypoints) == 0:
+        return None, None, im
+
     # Get largest keypoint
     largest = None
     for kp in keypoints:
