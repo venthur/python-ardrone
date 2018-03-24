@@ -13,7 +13,8 @@
 # mode: Manual or automatic
 import pygame
 
+W, H = 640, 360
 
 def render(screen,  originalImage, newImage, whichImage, offset, keypoint, a,b,c,d, landing, takeOff, mode):
-    surface = pygame.image.frombuffer(rgb_im, (W, H), 'RGB')
+    surface = pygame.image.frombuffer(newImage, (W, H), 'RGB')
     screen.blit(surface, (0, 0))
