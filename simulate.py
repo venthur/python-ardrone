@@ -30,7 +30,7 @@ while cap.isOpened():
         rgb_im = draw_keypoint(keypoint, im)
 
     pygame.display.flip()
-    render(screen, imagergb, rgb_im, True, offset, keypoint, a, b, c, d, False, False, "AUTOMATIC")
+    render(screen, imagergb, rgb_im, True, offset, keypoint, a, b, c, d, False, False, "AUTOMATIC", False)
     clock.tick(20)
     pygame.display.set_caption("FPS: %.2f" % clock.get_fps())
 
