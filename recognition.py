@@ -110,7 +110,7 @@ def process_image(im):
     # Calculate offset
     x, y = largest.pt
     x_size, y_size = len(im[0]), len(im)
-    #print("Image size is {}x{}".format(x_size, y_size))
+    print("Image size is {}x{}".format(x_size, y_size))
     offset = (x / x_size)-0.5, (y / y_size)-0.5
 
     #print("Offset from center is {}".format(offset))
