@@ -86,11 +86,10 @@ while running:
             rgb_im = cv2.cvtColor(im, cv2.COLOR_GRAY2RGB)
         else:
             rgb_im = draw_keypoint(keypoint, im)
-
+        pygame.display.flip()
         bat = drone.navdata.get('battery', 0)
         render(screen, imagergb, rgb_im, image_mode, offset, keypoint, a, b, c, d, drone.get_is_landing(), drone.get_is_takeoff(), "AUTOMATIC")
 
-        pygame.display.flip()
         clock.tick(50)
         pygame.display.set_caption("FPS: %.2f" % clock.get_fps())
         f = pygame.font.Font(None, 20)
