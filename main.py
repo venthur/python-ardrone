@@ -21,7 +21,7 @@ hud_color = (255, 0, 0)
 screen = pygame.display.set_mode((W, H))
 clock = pygame.time.Clock()
 stream = cv2.VideoCapture(path)
-
+image_mode = False
 need_to_land = False
 land_counter = 0
 
@@ -47,6 +47,8 @@ while running:
             # emergency
             elif event.key == pygame.K_BACKSPACE:
                 drone.reset()
+            elif event.key == pygame.K_i:
+                image_mode = not image_mode
             # forward / backward
 
     if running == False:
@@ -69,7 +71,7 @@ while running:
         elif need_to_land:
             print("Landing in {}".format(land_counter - 30))
             land_counter += 1
-
+        a,b,c,d = 0,0,0,0
         # Process image
         if flying and not need_to_land:
             a, b, c, d = get_flight_command(keypoint, offset)
@@ -84,12 +86,10 @@ while running:
             rgb_im = cv2.cvtColor(im, cv2.COLOR_GRAY2RGB)
         else:
             rgb_im = draw_keypoint(keypoint, im)
-
-        surface = pygame.image.frombuffer(rgb_im, (W, H), 'RGB')
-        bat = drone.navdata.get('battery', 0)
-        screen.blit(surface, (0, 0))
-
         pygame.display.flip()
+        bat = drone.navdata.get('battery', 0)
+        render(screen, imagergb, rgb_im, image_mode, offset, keypoint, a, b, c, d, drone.get_is_landing(), drone.get_is_takeoff(), "AUTOMATIC")
+
         clock.tick(50)
         pygame.display.set_caption("FPS: %.2f" % clock.get_fps())
         f = pygame.font.Font(None, 20)
