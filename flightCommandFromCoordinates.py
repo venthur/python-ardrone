@@ -25,9 +25,9 @@ def get_flight_command(keypoint, offset):
 
     else:
         print(keypoint.size)
-        if keypoint.size > 90:# and keypoint.pt[1] > image_landing_cutoff:
         flight_speed = max(-0.2, (0.5 + (0.5 - offset[1])) / 2 * -0.4)
         if keypoint.size > 90:
+
             if keypoint.size >= 100:
                 has100 = True
             if huegCounter < 15:
