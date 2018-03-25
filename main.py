@@ -7,6 +7,7 @@ import libardrone
 import time
 from flightCommandFromCoordinates import get_flight_command
 from recognition import preprocess_image, process_image, draw_keypoint
+from render import render
 
 capture = False
 running = True
