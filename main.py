@@ -72,7 +72,7 @@ while running:
         processor.input_queue.put(imagergb)
 
         if not processor.output_queue.empty():
-            keypoint, offset, im = processor.output_queue.get()
+            keypoint, offset, ignore, im = processor.output_queue.get()
 
             if need_to_land and land_counter >= landing_delay:
                 drone.land()
@@ -83,13 +83,16 @@ while running:
             a,b,c,d = 0,0,0,0
             # Process image
             if flying and not need_to_land:
-                a, b, c, d = get_flight_command(keypoint, offset)
-                if a is None:
-                    need_to_land = True
+                if not ignore:
+                    a, b, c, d = get_flight_command(keypoint, offset)
+                    if a is None:
+                        need_to_land = True
 
+                    else:
+                        print(a,b,c,d)
+                        drone.at(libardrone.at_pcmd, True, a, b, c, d)
                 else:
-                    print(a,b,c,d)
-                    drone.at(libardrone.at_pcmd, True, a, b, c, d)
+                    print("Ignoring keypoint due to false positive")
 
             if keypoint is None:
                 rgb_im = cv2.cvtColor(im, cv2.COLOR_GRAY2RGB)

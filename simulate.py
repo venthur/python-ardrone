@@ -32,7 +32,7 @@ while cap.isOpened():
         #print(keypoint.pt[0], keypoint.pt[1])
 
     if not processor.output_queue.empty():
-        keypoint, offset, im = processor.output_queue.get()
+        keypoint, offset, ignore, im = processor.output_queue.get()
 
         if need_to_land and land_counter >= 30:
             print("[DRONE] Landing!")
@@ -46,14 +46,17 @@ while cap.isOpened():
             land_counter += 1
 
         # Process image
-        a, b, c, d = get_flight_command(keypoint, offset)
-        if a is None:
-            need_to_land = True
+        if not ignore:
+            a, b, c, d = get_flight_command(keypoint, offset)
+            if a is None:
+                need_to_land = True
 
-        if keypoint is None:
-            rgb_im = cv2.cvtColor(im, cv2.COLOR_GRAY2RGB)
+            if keypoint is None:
+                rgb_im = cv2.cvtColor(im, cv2.COLOR_GRAY2RGB)
+            else:
+                rgb_im = draw_keypoint(keypoint, im)
         else:
-            rgb_im = draw_keypoint(keypoint, im)
+            print("Ignoring keypoint due to false positive")
 
         pygame.display.flip()
         render(screen, imagergb, rgb_im, image_mode, offset, keypoint, a, b, c, d, False, False, "AUTOMATIC", False)

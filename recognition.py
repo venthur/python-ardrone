@@ -11,6 +11,11 @@ from PIL import Image, ImageEnhance
 from Queue import Queue
 
 
+previous_measurement = None
+false_positive_offset = 50
+false_positives = []
+
+
 def showme(pic):
     cv2.imshow('window', pic)
     cv2.waitKey()
@@ -66,6 +71,7 @@ def preprocess_image(im):
 
 
 def process_image(im):
+    global previous_measurement, false_positives
 
     # Setup SimpleBlobDetector parameters.
     params = cv2.SimpleBlobDetector_Params()
@@ -100,7 +106,7 @@ def process_image(im):
     #print("{} blob(s) found".format(len(keypoints)))
 
     if len(keypoints) == 0:
-        return None, None
+        return None, None, False
 
     # Get largest keypoint
     largest = None
@@ -118,7 +124,25 @@ def process_image(im):
 
     #print("Offset from center is {}".format(offset))
 
-    return largest, offset
+    # Detect false positive if x and y coordinate more then 50px off
+    ignore = False
+    if previous_measurement is not None:
+        if abs(previous_measurement.pt[0] - x) > false_positive_offset or \
+                abs(previous_measurement.pt[1] - y) > false_positive_offset or \
+                abs(previous_measurement.size - largest.size) > false_positive_offset:
+            ignore = True
+            false_positives.append(largest)
+        else:
+            previous_measurement = largest
+    else:
+        previous_measurement = largest
+
+    if ignore and len(false_positives) > 5:
+        print("Resetting false positives")
+        false_positives = []
+        previous_measurement = largest
+
+    return largest, offset, ignore
 
 
 def draw_keypoint(keypoint, im):
@@ -161,8 +185,8 @@ class ProcessingThread(threading.Thread):
                 imagergb = self.input_queue.get()
             if imagergb is not None:
                 im = preprocess_image(imagergb)
-                keypoint, offset = process_image(im)
-                self.output_queue.put((keypoint, offset, im))
+                keypoint, offset, ignore = process_image(im)
+                self.output_queue.put((keypoint, offset, ignore, im))
 
 
 if __name__ == "__main__":
@@ -176,7 +200,7 @@ if __name__ == "__main__":
     im = preprocess_image(im)
 
     # Process image
-    keypoint, offset = process_image(im)
+    keypoint, offset, ignore = process_image(im)
 
     # Draw keypoints
     im = draw_keypoint(keypoint, im)
