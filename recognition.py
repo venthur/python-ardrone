@@ -1,11 +1,14 @@
 #!/usr/bin/python
 
 # Standard imports
+import threading
+
 import cv2
 import numpy as np
 import time
 import pygame
 from PIL import Image, ImageEnhance
+from Queue import Queue
 
 
 def showme(pic):
@@ -141,6 +144,25 @@ def initialize(W, H):
     clock = pygame.time.Clock()
 
     return screen, clock
+
+
+class ProcessingThread(threading.Thread):
+    input_queue = Queue()
+    output_queue = Queue()
+    run = True
+
+    def stop(self):
+        self.run = False
+
+    def run(self):
+        while self.run:
+            imagergb = None
+            while not self.input_queue.empty():
+                imagergb = self.input_queue.get()
+            if imagergb is not None:
+                im = preprocess_image(imagergb)
+                keypoint, offset = process_image(im)
+                self.output_queue.put((keypoint, offset, im))
 
 
 if __name__ == "__main__":
