@@ -16,6 +16,8 @@ stream = cv2.VideoCapture(path)
 fourcc = cv2.VideoWriter_fourcc(*'XVID')
 out = cv2.VideoWriter("output.avi", fourcc, 20.0, (W, H))
 
+drone.at(libardrone.at_zap, 1)
+
 time = time.time()
 while stream.isOpened():
     ret, frame = stream.read()
@@ -24,6 +26,20 @@ while stream.isOpened():
         out.write(frame)
 
         cv2.imshow('frame', frame)
+
+        if cv2.waitKey(1) & 0xFF == ord('a'):
+            print("A")
+            drone.at(libardrone.at_zap, 0)
+        if cv2.waitKey(1) & 0xFF == ord('b'):
+            print("B")
+            drone.at(libardrone.at_zap, 1)
+        if cv2.waitKey(1) & 0xFF == ord('c'):
+            print("C")
+            drone.at(libardrone.at_zap, 2)
+        if cv2.waitKey(1) & 0xFF == ord('d'):
+            print("D")
+            drone.at(libardrone.at_zap, 3)
+
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
     else:

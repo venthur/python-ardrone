@@ -26,6 +26,8 @@ image_mode = False
 need_to_land = False
 land_counter = 0
 
+landing_delay = 15
+
 processor = ProcessingThread()
 processor.start()
 
@@ -72,11 +74,11 @@ while running:
         if not processor.output_queue.empty():
             keypoint, offset, im = processor.output_queue.get()
 
-            if need_to_land and land_counter >= 30:
+            if need_to_land and land_counter >= landing_delay:
                 drone.land()
                 flying = False
             elif need_to_land:
-                print("Landing in {}".format(land_counter - 30))
+                print("Landing in {}".format(land_counter - landing_delay))
                 land_counter += 1
             a,b,c,d = 0,0,0,0
             # Process image
@@ -95,7 +97,7 @@ while running:
                 rgb_im = draw_keypoint(keypoint, im)
             pygame.display.flip()
             bat = drone.navdata.get('battery', 0)
-            render(screen, imagergb, rgb_im, image_mode, offset, keypoint, a, b, c, d, drone.get_is_landing(), drone.get_is_takeoff(), "AUTOMATIC")
+            render(screen, imagergb, rgb_im, image_mode, offset, keypoint, a, b, c, d, drone.get_is_landing(), drone.get_is_takeoff(), "AUTOMATIC", False)
 
             clock.tick(50)
             pygame.display.set_caption("FPS: %.2f" % clock.get_fps())
