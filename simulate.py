@@ -3,6 +3,7 @@ import pygame
 
 from flightCommandFromCoordinates import get_flight_command
 from recognition import preprocess_image, process_image, draw_keypoint
+from render import render
 
 cap = cv2.VideoCapture('output.avi')
 pygame.init()
@@ -13,7 +14,13 @@ clock = pygame.time.Clock()
 need_to_land = False
 land_counter = 0
 
+image_mode = False
+
 while cap.isOpened():
+    for event in pygame.event.get():
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_i:
+                image_mode = not image_mode
     ret, frame = cap.read()
     imagergb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     im = preprocess_image(imagergb)
@@ -42,9 +49,9 @@ while cap.isOpened():
         rgb_im = cv2.cvtColor(im, cv2.COLOR_GRAY2RGB)
     else:
         rgb_im = draw_keypoint(keypoint, im)
-    surface = pygame.image.frombuffer(rgb_im, (W, H), 'RGB')
-    screen.blit(surface, (0, 0))
+
     pygame.display.flip()
+    render(screen, imagergb, rgb_im, image_mode, offset, keypoint, a, b, c, d, False, False, "AUTOMATIC", False)
     clock.tick(20)
     pygame.display.set_caption("FPS: %.2f" % clock.get_fps())
 

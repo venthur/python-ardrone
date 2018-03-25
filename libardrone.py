@@ -43,6 +43,7 @@ ARDRONE_VIDEO_PORT = 5555
 ARDRONE_COMMAND_PORT = 5556
 
 
+
 class ARDrone(object):
     """ARDrone Class.
 
@@ -67,16 +68,30 @@ class ARDrone(object):
         self.image = ""
         self.navdata = dict()
         self.time = 0
+        self.is_takeoff = False
+        self.is_landing = False
+
+    def get_is_landing(self):
+        result = self.is_landing
+        self.is_landing = False
+        return
+
+    def get_is_takeoff(self):
+        result = self.is_landing
+        self.is_landing = False
+        return
 
     def takeoff(self):
         """Make the drone takeoff."""
         self.at(at_ftrim)
         self.at(at_config, "control:altitude_max", "20000")
         self.at(at_ref, True)
+        self.is_takeoff = True
 
     def land(self):
         """Make the drone land."""
         self.at(at_ref, False)
+        self.is_landing = True
 
     def hover(self):
         """Make the drone hover."""
