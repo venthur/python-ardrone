@@ -1,4 +1,3 @@
-
 # !/usr/bin/env python
 
 import cv2
@@ -7,6 +6,7 @@ import libardrone
 import time
 from flightCommandFromCoordinates import get_flight_command
 from recognition import preprocess_image, process_image, draw_keypoint
+from render import render
 
 capture = False
 running = True
@@ -49,7 +49,7 @@ while running:
                 drone.reset()
             elif event.key == pygame.K_i:
                 image_mode = not image_mode
-            # forward / backward
+                # forward / backward
 
     if running == False:
         print "Shut Down"
@@ -71,7 +71,7 @@ while running:
         elif need_to_land:
             print("Landing in {}".format(land_counter - 30))
             land_counter += 1
-        a,b,c,d = 0,0,0,0
+        a, b, c, d = 0, 0, 0, 0
         # Process image
         if flying and not need_to_land:
             a, b, c, d = get_flight_command(keypoint, offset)
@@ -79,7 +79,7 @@ while running:
                 need_to_land = True
 
             else:
-                print(a,b,c,d)
+                print(a, b, c, d)
                 drone.at(libardrone.at_pcmd, True, a, b, c, d)
 
         if keypoint is None:
@@ -88,7 +88,8 @@ while running:
             rgb_im = draw_keypoint(keypoint, im)
         pygame.display.flip()
         bat = drone.navdata.get('battery', 0)
-        render(screen, imagergb, rgb_im, image_mode, offset, keypoint, a, b, c, d, drone.get_is_landing(), drone.get_is_takeoff(), "AUTOMATIC")
+        render(screen, imagergb, rgb_im, image_mode, offset, keypoint, a, b, c, d, drone.get_is_landing(),
+               drone.get_is_takeoff(), "AUTOMATIC" )
 
         clock.tick(50)
         pygame.display.set_caption("FPS: %.2f" % clock.get_fps())
@@ -98,6 +99,7 @@ while running:
         screen.blit(hud, (10, 10))
     except Exception as e:
         import traceback
+
         traceback.print_exc()
         print e
         pass
