@@ -6,6 +6,8 @@ startCounter = 0
 huegCounter = 0
 has100 = False
 
+image_landing_cutoff = 300
+
 def get_flight_command(keypoint, offset):
     global notFoundCounter, huegCounter, startCounter, has100
 
@@ -20,13 +22,13 @@ def get_flight_command(keypoint, offset):
 
     else:
         print(keypoint.size)
-        if keypoint.size > 90:
+        if keypoint.size > 90 and keypoint.pt[1] > image_landing_cutoff:
             if keypoint.size >= 100:
                 has100 = True
             if huegCounter < 15:
                 huegCounter += 1
             else:
-                print("LANDING B/C OF SIZE")
+                print("LANDING B/C OF SIZE AND POSITION")
                 return None, None, None, None
         else:
             huegCounter = 0
