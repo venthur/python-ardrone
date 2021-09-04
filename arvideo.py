@@ -208,7 +208,7 @@ def _first_half(data):
 
 
 def _second_half(data):
-    """Helper function to precompute the nonzeror values in a 15 bit datum.
+    """Helper function to precompute the nonzero values in a 15 bit datum.
     """
     # data has to be 15 bits wide
     streamlen = 0
