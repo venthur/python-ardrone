@@ -148,7 +148,7 @@ class ARDrone(object):
     def commwdg(self):
         """Communication watchdog signal.
 
-        This needs to be send regulary to keep the communication w/ the drone
+        This needs to be send regular to keep the communication w/ the drone
         alive.
         """
         self.at(at_comwdg)
@@ -295,7 +295,7 @@ def at_anim(seq, anim, d):
     Makes the drone execute a predefined movement (animation).
 
     Parameters:
-    seq -- sequcence number
+    seq -- sequence number
     anim -- Integer: animation to play
     d -- Integer: total duration in sections of the animation
     """
